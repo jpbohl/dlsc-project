@@ -29,19 +29,30 @@ lr = 0.0001
 hidden = 2
 neurons = 12
 
+#TODO: define problem together with exact solution to
+#du/dx = ω1 cos(ω1x) + ω2 cos(ω2x)
+#ω1=1, ω2=15
+
 # get training set
 trainset = assemble_dataset(domain, nsamples)
 
-# define model
-model = FBPinn(nwindows, domain, hidden, neurons)
+# define fbpinn model
+model_fbpinn = FBPinn(nwindows, domain, hidden, neurons)
+
+#define regular pinn model
+#TODO: define instance of PiNN
 
 # define optimizer
-optimizer = ADAM(model.parameters(), lr)
+optimizer = ADAM(model_fbpinn.parameters(), lr)
 
 # training loop
 for i in range(nepochs):
     for input in trainset:
         optimizer.zero_grad()
-        pred = model.forward()
+        pred = model_fbpinn.forward()
+        #TODO: add hard constraint for boundary conditions
         loss = compute_loss(pred, input)
         loss.backward()
+
+
+# do some plots to visualize ben-moseley style 

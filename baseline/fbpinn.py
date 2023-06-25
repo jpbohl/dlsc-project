@@ -7,6 +7,9 @@ def partition_domain(domain):
     """
     Given an interval, splits it into evenly sized
     overlapping subintervals. 
+
+    First just focus on 1 dimension.
+
     Input: 
         domain (tensor) : start and end point of domain
     Return:
@@ -40,12 +43,32 @@ class FBPinn(Module):
         """
         return (subdomains[:, 1] - subdomains[:, 0]) / 2
 
+
+    def get_midpoints_overlap(self, subdomains):
+        """
+        Gets the midpoint of left and right overlapping domain 
+        for window function later.
+        """
+
+        raise NotImplementedError
+
     def compute_window(self, input, domain):
         """
         Computes window function given input points and domain
         """
 
         #TODO Implement window function
+        #given by sigmoid function 
+        #needs midpoint of right and left overlapping domain
+
+        raise NotImplementedError
+
+    def un_norm(self):
+        """
+        
+        Get common function for all unnormalization of neural networks
+        such that all outputs stay within [-1,1]
+        """
 
         raise NotImplementedError
 
@@ -58,14 +81,18 @@ class FBPinn(Module):
         for i in range(self.nwindows):
 
             model = self.models[i] # get model i
+
+            #TODO: get input data of subdomain
             
             # normalize data to given subdomain
+            # normalize such that input lies in [-1,1]
             input_norm = (input - self.means[i]) / self.std 
             
             # model i prediction
             output = model(input_norm) 
 
             # TODO: Implement unnormalizing data
+            # use function un_norm as we need common unnormalizing for all NN
             
             # compute window function for subdomain i
             subdomain = self.subdomains[i, :]
@@ -74,6 +101,8 @@ class FBPinn(Module):
             # add prediction to total output
             pred += window * output
 
+
+        #TODO: sum neural networks in overlapping regions
+
         return pred
     
-#caro test
