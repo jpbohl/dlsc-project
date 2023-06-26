@@ -3,23 +3,7 @@ from torch.nn import Module
 
 from nn import NeuralNet as NN
 
-def partition_domain(domain):
-    """
-    Given an interval, splits it into evenly sized
-    overlapping subintervals. 
 
-    First just focus on 1 dimension.
-
-    Input: 
-        domain (tensor) : start and end point of domain
-    Return:
-        subdomains (tensor) : k x 2 tensor containing 
-            the start and end points of the subdomains
-    """
-
-    #TODO Implement domain partioning
-
-    raise NotImplementedError
 
 
 class FBPinn(Module):
@@ -29,22 +13,45 @@ class FBPinn(Module):
 
         self.nwindows = nwindows
         self.domain = domain
-        self.subdomains = partition_domain(self.domain)
-        self.means = self.get_midpoints(self.subdomains)
+        self.subdomains = self.partition_domain()
+        self.means = self.get_midpoints()
         
         self.models = [NN(hidden, neurons) for _ in range(self.nwindows)]
         
         raise NotImplementedError
 
-    def get_midpoints(self, subdomains):
+
+    ###  Task Allebasi
+    def partition_domain(self):
+        """
+        Given an interval, splits it into evenly sized
+        overlapping subintervals. 
+
+        First just focus on 1 dimension.
+
+        Input: 
+            domain (tensor) : start and end point of domain
+        Return:
+            subdomains (tensor) : k x 2 tensor containing 
+                the start and end points of the subdomains
+        """
+
+        #TODO Implement domain partioning
+
+        raise NotImplementedError
+
+
+    def get_midpoints(self):
         """
         Gets the midpoint of each subdomain for subdomain
         normalization. 
         """
+        self.subdomain
+
         return (subdomains[:, 1] - subdomains[:, 0]) / 2
 
 
-    def get_midpoints_overlap(self, subdomains):
+    def get_midpoints_overlap(self):
         """
         Gets the midpoint of left and right overlapping domain 
         for window function later.
@@ -52,16 +59,21 @@ class FBPinn(Module):
 
         raise NotImplementedError
 
-    def compute_window(self, input, domain):
+    def compute_window(self, input):
         """
         Computes window function given input points and domain
         """
+        self.domain
 
         #TODO Implement window function
         #given by sigmoid function 
         #needs midpoint of right and left overlapping domain
+        # + set of parameters (see paper first)
 
         raise NotImplementedError
+    
+
+### Task Bohl:
 
     def un_norm(self):
         """
@@ -69,6 +81,9 @@ class FBPinn(Module):
         Get common function for all unnormalization of neural networks
         such that all outputs stay within [-1,1]
         """
+
+        #problem specific
+        #maybe fix parameters u_mu and u_std
 
         raise NotImplementedError
 
@@ -81,8 +96,6 @@ class FBPinn(Module):
         for i in range(self.nwindows):
 
             model = self.models[i] # get model i
-
-            #TODO: get input data of subdomain
             
             # normalize data to given subdomain
             # normalize such that input lies in [-1,1]
@@ -99,10 +112,11 @@ class FBPinn(Module):
             window = self.compute_window(input, subdomain)
 
             # add prediction to total output
+            # sum neural networks in overlapping regions
             pred += window * output
 
+            #TODO: add hard constraint for boundary conditions
 
-        #TODO: sum neural networks in overlapping regions
 
         return pred
     

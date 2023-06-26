@@ -5,6 +5,8 @@ from torch.optim.optimizer import ADAM
 from fbpinn import FBPinn
 
 
+### Task Bohl: 
+
 def assemble_dataset(domain, nsamples):
     """
     Sample points in given domain and create dataloader
@@ -29,6 +31,8 @@ lr = 0.0001
 hidden = 2
 neurons = 12
 
+### Task Caro
+
 #TODO: define problem together with exact solution to
 #du/dx = ω1 cos(ω1x) + ω2 cos(ω2x)
 #ω1=1, ω2=15
@@ -38,6 +42,7 @@ trainset = assemble_dataset(domain, nsamples)
 
 # define fbpinn model
 model_fbpinn = FBPinn(nwindows, domain, hidden, neurons)
+
 
 #define regular pinn model
 #TODO: define instance of PiNN
@@ -50,9 +55,8 @@ for i in range(nepochs):
     for input in trainset:
         optimizer.zero_grad()
         pred = model_fbpinn.forward()
-        #TODO: add hard constraint for boundary conditions
         loss = compute_loss(pred, input)
         loss.backward()
 
 
-# do some plots to visualize ben-moseley style 
+# do some plots (Figure 7) to visualize ben-moseley style 
