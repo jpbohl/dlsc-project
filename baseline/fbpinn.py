@@ -8,13 +8,16 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, nwindows, domain, hidden, neurons):
+    def __init__(self, nwindows, domain, hidden, neurons, u_mean=0, u_sd=1):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
         self.domain = domain
         self.subdomains = self.partition_domain()
         self.means = self.get_midpoints()
+
+        self.u_mean = u_mean
+        self.u_sd = u_sd
         
         self.models = [NN(hidden, neurons) for _ in range(self.nwindows)]
         
@@ -73,20 +76,6 @@ class FBPinn(Module):
         raise NotImplementedError
     
 
-### Task Bohl:
-
-    def un_norm(self):
-        """
-        
-        Get common function for all unnormalization of neural networks
-        such that all outputs stay within [-1,1]
-        """
-
-        #problem specific
-        #maybe fix parameters u_mu and u_std
-
-        raise NotImplementedError
-
     def forward(self, input):
         """
         Computes forward pass of FBPinn model 
@@ -104,9 +93,8 @@ class FBPinn(Module):
             # model i prediction
             output = model(input_norm) 
 
-            # TODO: Implement unnormalizing data
-            # use function un_norm as we need common unnormalizing for all NN
-            
+            output = output * self.u_sd + self.u_mean
+
             # compute window function for subdomain i
             subdomain = self.subdomains[i, :]
             window = self.compute_window(input, subdomain)
@@ -115,8 +103,4 @@ class FBPinn(Module):
             # sum neural networks in overlapping regions
             pred += window * output
 
-            #TODO: add hard constraint for boundary conditions
-
-
         return pred
-    
