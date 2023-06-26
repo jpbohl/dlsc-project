@@ -8,16 +8,17 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, nwindows, domain, hidden, neurons, u_mean=0, u_sd=1):
+    def __init__(self, nwindows, domain, hidden, neurons, overlap, u_mean=0, u_sd=1):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
-        self.domain = domain
+        self.domain = domain # domain of the form torch.tensor([[a, b], [c, d], ...]) depending on dimension
         self.subdomains = self.partition_domain()
         self.means = self.get_midpoints()
 
         self.u_mean = u_mean
         self.u_sd = u_sd
+        self.overlap = overlap # percentage of overlap of subdomains
         
         self.models = [NN(hidden, neurons) for _ in range(self.nwindows)]
         
@@ -36,12 +37,19 @@ class FBPinn(Module):
             domain (tensor) : start and end point of domain
         Return:
             subdomains (tensor) : k x 2 tensor containing 
-                the start and end points of the subdomains
+                the start and end points of the subdomains with equal overlap
         """
 
-        #TODO Implement domain partioning
+        subdomains = torch.zeros(self.nwindows, 2)
+        
+        width = (self.domain[0][1]-self.domain[0][0]) / self.nwindows
+        for i in range(self.nwindows):
+            subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
+            subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[0][1]
+        
+        return subdomains
 
-        raise NotImplementedError
+        #raise NotImplementedError
 
 
     def get_midpoints(self):
