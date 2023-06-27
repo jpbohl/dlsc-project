@@ -158,20 +158,28 @@ trainset = problem.assemble_dataset(domain, nsamples)
 # define fbpinn model
 model_fbpinn = FBPinn(nwindows, domain, hidden, neurons)
 
-
-#define regular pinn model
-#TODO: define instance of PiNN
+# define pinn model
+model_pinn = Pinn(domain, hidden, neurons)
 
 # define optimizer
-optimizer = ADAM(model_fbpinn.parameters(), lr)
+optimizer_fbpinn = ADAM(model_fbpinn.parameters(), lr)
+optimizer_pinn = ADAM(model_pinn.parameters(), lr)
 
-# training loop
+# training loop FBPiNN
 for i in range(nepochs):
     for input in trainset:
-        optimizer.zero_grad()
-        pred = model_fbpinn.forward()
+        optimizer_fbpinn.zero_grad()
+        pred = model_fbpinn.forward(input)
         loss = problem.compute_loss(pred, input)
         loss.backward()
 
+
+# training loop PiNN
+for i in range(nepochs):
+    for input in trainset:
+        optimizer_pinn.zero_grad()
+        pred = model_pinn.forward(input)
+        loss = problem.compute_loss(pred, input)
+        loss.backward()
 
 # do some plots (Figure 7) to visualize ben-moseley style 

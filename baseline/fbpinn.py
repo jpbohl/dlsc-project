@@ -15,6 +15,7 @@ class FBPinn(Module):
         self.domain = domain # domain of the form torch.tensor([[a, b], [c, d], ...]) depending on dimension
         self.subdomains = self.partition_domain()
         self.means = self.get_midpoints()
+        #caro: add self.std as (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
 
         self.u_mean = u_mean
         self.u_sd = u_sd
@@ -58,6 +59,9 @@ class FBPinn(Module):
         Gets the midpoint of each subdomain for subdomain
         normalization. 
         """
+
+        #caro: ich glaube + self.subdomains[:,0] damit wir wirklich midpoint vom intervall haben
+        #und später richtig normieren
 
         return (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
 
@@ -103,6 +107,8 @@ class FBPinn(Module):
         Computes forward pass of FBPinn model 
         """
 
+        #caro: i think zeros_like(self.domain) as input is going to be sobol points
+
         pred = torch.zeros_like(input)
         for i in range(self.nwindows):
 
@@ -112,6 +118,8 @@ class FBPinn(Module):
             # normalize such that input lies in [-1,1]
             input_norm = (input - self.means[i]) / self.std 
             
+            #caro: woher kommt self.std ?
+
             # model i prediction
             output = model(input_norm) 
 
@@ -124,5 +132,42 @@ class FBPinn(Module):
             # add prediction to total output
             # sum neural networks in overlapping regions
             pred += window * output
+
+        return pred
+
+
+class Pinn(Module):
+
+    def __init__(self, domain, hidden, neurons, u_mean=0, u_sd=1):
+
+        self.domain = domain # domain of the form torch.tensor([a, b])
+
+        #parameter for normalize
+        self.mean= (domain[1] + domain[0])/2
+        self.std = (domain[1] - domain[0])/2
+        
+        #parameters for unnormalize
+        self.u_mean= u_mean
+        self.u_sd=u_sd
+
+
+        self.model= NN(hidden, neurons)
+
+
+    def forward(self, input):
+
+
+        pred = torch.zeros_like(self.domain)
+
+        model = self.model
+        
+        # normalize data to given subdomain
+        # normalize such that input lies in [-1,1]
+        input_norm = (input - self.mean) / self.std 
+        
+        # model prediction
+        output = model(input_norm) 
+
+        output = output * self.u_sd + self.u_mean
 
         return pred
