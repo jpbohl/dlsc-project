@@ -24,7 +24,7 @@ class Cos1d(object):
         sobol = torch.quasirandom.SobolEngine(1, seed=0)
         points = sobol.draw(self.nsamples)
 
-        points = points * (self.domain[1] - self.domain[0]) - self.domain[0] #caro: ich glaube es sollte + self.domain[0] sein?
+        points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
 
