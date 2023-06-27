@@ -8,7 +8,7 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, nwindows, domain, hidden, neurons, overlap, u_mean=0, u_sd=1):
+    def __init__(self, nwindows, domain, hidden, neurons, overlap, sigma, u_mean=0, u_sd=1):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
@@ -19,6 +19,7 @@ class FBPinn(Module):
         self.u_mean = u_mean
         self.u_sd = u_sd
         self.overlap = overlap # percentage of overlap of subdomains
+        self.sigma = sigma # parameter (set) for window function
         
         self.models = [NN(hidden, neurons) for _ in range(self.nwindows)]
         
@@ -37,7 +38,7 @@ class FBPinn(Module):
             domain (tensor) : start and end point of domain
         Return:
             subdomains (tensor) : k x 2 tensor containing 
-                the start and end points of the subdomains with equal overlap
+                the start and end points of the subdomains with equal overlap on all sides
         """
 
         subdomains = torch.zeros(self.nwindows, 2)
@@ -57,9 +58,8 @@ class FBPinn(Module):
         Gets the midpoint of each subdomain for subdomain
         normalization. 
         """
-        self.subdomain
 
-        return (subdomains[:, 1] - subdomains[:, 0]) / 2
+        return (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
 
 
     def get_midpoints_overlap(self):
@@ -67,21 +67,35 @@ class FBPinn(Module):
         Gets the midpoint of left and right overlapping domain 
         for window function later.
         """
+        #initialize midpoints, edges of domain are not overlapping
+        midpoints = torch.zeros(self.nwindows)
+        midpoints[0] = self.subdomains[0][0]
+        midpoints[self.nwindows] = self.subdomains[self.nwindows][1]
 
-        raise NotImplementedError
+        #compute midpoints of overlapping interior domains
+        for i in range(self.nwindows):
+            midpoints[i+1] = (self.subdomains[i][1] + self.subdomains[i+1][0]) / 2 
 
-    def compute_window(self, input):
+        return midpoints
+        #raise NotImplementedError
+
+    def compute_window(self, input, subdomain):
         """
-        Computes window function given input points and domain
+        Computes window function given input points and domain and parameter sigma
         """
-        self.domain
+        # 1D case
+        
+        x_left = (input - self.get_midpoints_overlap()[subdomain])/self.sigma
+        x_right = (input - self.get_midpoints_overlap()[subdomain+1])/self.sigma
+        # x_left = (input - self.subdomain[subdomain][0])/self.sigma
+        # x_right = (input - self.subdomain[subdomain][1])/self.sigma
+        
+        window = 1/(1+torch.exp(-x_left)) * 1/(1+torch.exp(x_right))
+        
+        
+        return window
 
-        #TODO Implement window function
-        #given by sigmoid function 
-        #needs midpoint of right and left overlapping domain
-        # + set of parameters (see paper first)
-
-        raise NotImplementedError
+        #raise NotImplementedError
     
 
     def forward(self, input):
