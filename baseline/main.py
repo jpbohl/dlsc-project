@@ -99,7 +99,7 @@ class Cos1d_multicscale(object):
         boundary conditions
         """
 
-        return torch.tanh(self.w1 * input)*torch.tanh(self.w2 * x) * pred
+        return torch.tanh(self.w1 * input)*torch.tanh(self.w2 * x) * pred # Isi:  tanh(w1*input)*tanh(w2*input)*pred statt 'x'
 
     def compute_pde_residual(self, pred, input):
         """
@@ -139,13 +139,22 @@ class Cos1d_multicscale(object):
 
 
 # define parameters
+# Parameters in paper ω=1 : 
+# domain = torch.tensor((-2*torch.pi, 2*torch.pi))
+# nwindows = 5
+# hidden = 2
+# neurons = 16
+# nepochs = 50000
+# nsamples = 200
 domain = torch.tensor((0, 1))
 nwindows = 10
 nsamples = 1000
 nepochs = 1000
 lr = 0.0001
 hidden = 2
-neurons = 12
+neurons = 12 
+
+
 
 problem = Cos1d(domain, nsamples, w = 15)
 
@@ -159,7 +168,7 @@ trainset = problem.assemble_dataset(domain, nsamples)
 model_fbpinn = FBPinn(nwindows, domain, hidden, neurons)
 
 # define pinn model
-model_pinn = Pinn(domain, hidden, neurons)
+model_pinn = Pinn(domain, hidden, neurons) # Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
 
 # define optimizer
 optimizer_fbpinn = ADAM(model_fbpinn.parameters(), lr)

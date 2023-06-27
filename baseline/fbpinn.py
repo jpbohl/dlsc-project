@@ -63,7 +63,7 @@ class FBPinn(Module):
         #caro: ich glaube + self.subdomains[:,0] damit wir wirklich midpoint vom intervall haben
         #und später richtig normieren
 
-        return (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
+        return (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2 + self.subdomains[:,0]
 
 
     def get_midpoints_overlap(self):
