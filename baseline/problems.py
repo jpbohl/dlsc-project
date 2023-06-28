@@ -135,7 +135,8 @@ class Cos1dMulticscale(object):
         """
         Compute PDE loss using autograd
         """
-
+        
+        input.requires_grad = True
         pred = self.hard_constraint(pred, input)
         dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
         f = self.w1 * torch.cos(self.w1 * input)+ self.w2 * torch.cos(self.w2 * input)
