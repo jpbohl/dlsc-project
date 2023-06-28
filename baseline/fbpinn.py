@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module
+from torch.nn import Module, ModuleList
 
 from nn import NeuralNet as NN
 
@@ -21,8 +21,9 @@ class FBPinn(Module):
 
         self.u_mean = u_mean
         self.u_sd = u_sd
-        self.models = [NN(hidden, neurons) for _ in range(self.nwindows)]
+        self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
 
+        # Jan : ich glaube das funktioniert leider nicht die parameter werden dann im Model nicht angepasst
         #set the parameters to optimize for later
         params=[]
         for i in range(len(self.models)):

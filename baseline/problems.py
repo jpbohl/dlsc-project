@@ -27,7 +27,7 @@ class Cos1d(object):
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
 
         #in 1d we sort the points in ascending order 
-        points,indices =torch.sort(points,dim=-2)
+        points, indices = torch.sort(points, dim=-2)
 
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
@@ -45,16 +45,15 @@ class Cos1d(object):
 
         input.requires_grad = True
         pred = self.hard_constraint(pred, input)
-        pred.requires_grad=True
 
-        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)
+        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
         f = torch.cos(self.w * input)
         
-        assert (dx - f).size() == self.nsamples
+        assert (dx - f).numel() == self.nsamples
 
         return dx - f
     
-    def compute_loss(self, pred, input, verbose=True):
+    def compute_loss(self, pred, input, verbose=False):
         """
         Compute loss by applying the norm to the pde residual 
         """
@@ -109,7 +108,7 @@ class Cos1dMulticscale(object):
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0] #maybe - ?
         
         #in 1d we sort the points in ascending order 
-        points,indices =torch.sort(points,dim=-2)
+        points, indices =torch.sort(points, dim=-2)
         
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
@@ -122,7 +121,7 @@ class Cos1dMulticscale(object):
         boundary conditions
         """
 
-        return torch.tanh(self.w1 * input)*torch.tanh(self.w2 * input) * pred 
+        return torch.tanh(self.w1 * input) * torch.tanh(self.w2 * input) * pred 
 
     def compute_pde_residual(self, pred, input):
         """
@@ -130,14 +129,14 @@ class Cos1dMulticscale(object):
         """
 
         pred = self.hard_constraint(pred, input)
-        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)
+        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
         f = self.w1 * torch.cos(self.w1 * input)+ self.w2 * torch.cos(self.w2 * input)
         
-        assert (dx - f).size() == self.nsamples
+        assert (dx - f).numel() == self.nsamples
 
         return dx - f
     
-    def compute_loss(self, pred, input, verbose=True):
+    def compute_loss(self, pred, input, verbose=False):
         """
         Compute loss by applying the norm to the pde residual 
         """
@@ -157,4 +156,4 @@ class Cos1dMulticscale(object):
 
     def exact_solution(self, input):
 
-        return torch.sin(self.w1 * input)+torch.sin(self.w2 * input)
+        return torch.sin(self.w1 * input) + torch.sin(self.w2 * input)
