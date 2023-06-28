@@ -45,11 +45,11 @@ pinn = Pinn(domain, hidden, neurons)
 
 # define optimizer
 
-optimizer_pinn = optim.Adam(pinn.parameters(), 
+optimizer_pinn = optim.Adam(pinn.model.parameters(), 
                             lr=float(0.1))    
 
-optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=float(0.1))
+optimizer_fbpinn = optim.Adam(fbpinn.models.parameters(),
+                            lr=float(0.001))
 
 # training loop FBPiNN
 print("Training FBPINN")
