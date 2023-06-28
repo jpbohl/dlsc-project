@@ -49,7 +49,7 @@ optimizer_pinn = optim.Adam(pinn.model.parameters(),
                             lr=float(0.1))    
 
 optimizer_fbpinn = optim.Adam(fbpinn.models.parameters(),
-                            lr=float(0.001))
+                            lr=float(0.1))
 
 # training loop FBPiNN
 print("Training FBPINN")
@@ -58,6 +58,7 @@ for i in range(nepochs):
     for input in trainset:
         optimizer_fbpinn.zero_grad()
         pred = fbpinn.forward(input[0])
+        #loss = problem.debug_loss(pred, input[0])
         loss = problem.compute_loss(pred, input[0])
         #loss = problem.compute_loss(pred, input[0],verbose=True)
         loss.backward()
