@@ -25,6 +25,10 @@ class Cos1d(object):
         points = sobol.draw(self.nsamples)
 
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
+
+        #in 1d we sort the points in ascending order 
+        points,indices =torch.sort(points,dim=-2)
+
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
 
@@ -38,7 +42,11 @@ class Cos1d(object):
         """
         Compute PDE loss using autograd
         """
+
+        input.requires_grad = True
         pred = self.hard_constraint(pred, input)
+        pred.requires_grad=True
+
         dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)
         f = torch.cos(self.w * input)
         
@@ -99,6 +107,10 @@ class Cos1dMulticscale(object):
 
         #sample points in [a,b]
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0] #maybe - ?
+        
+        #in 1d we sort the points in ascending order 
+        points,indices =torch.sort(points,dim=-2)
+        
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
 
