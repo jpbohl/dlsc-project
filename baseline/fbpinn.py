@@ -91,7 +91,7 @@ class FBPinn(Module):
         for i in range(1,self.nwindows):
             midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
 
-        return torch.tensor(midpoints)
+        return midpoints
         #raise NotImplementedError
 
     def compute_window(self, input, iteration):
@@ -107,11 +107,7 @@ class FBPinn(Module):
         
         window = 1/(1+torch.exp(x_left)) * 1/(1+torch.exp(-x_right))
         
-        
         return window
-
-        #raise NotImplementedError
-    
 
     def forward(self, input):
         """
@@ -128,6 +124,7 @@ class FBPinn(Module):
             input_norm = torch.sub(input,self.means[i]) / self.std[i] 
             
             #caro: woher kommt self.std ?
+            # jan: berechne ich in der innit function
 
             # model i prediction
             output = model(input_norm.reshape(-1,1)) 

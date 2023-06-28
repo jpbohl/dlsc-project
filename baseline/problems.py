@@ -47,7 +47,7 @@ class Cos1d(object):
         pred = self.hard_constraint(pred, input)
 
         dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
-        f = torch.cos(self.w * input)
+        f = torch.cos(self.w * input) 
         
         assert (dx - f).numel() == self.nsamples
 
@@ -58,15 +58,23 @@ class Cos1d(object):
         Compute loss by applying the norm to the pde residual 
         """
         
-        r_int  = self.compute_pde_residual(pred, input)
-        loss_int = torch.mean(abs(r_int) ** 2)
+        residual  = self.compute_pde_residual(pred, input)
+        loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
-        loss = torch.log10(loss_int)
+        loss = torch.log10(loss)
 
         if verbose: print("Total loss: ", round(loss.item(), 4))
 
         return loss
+
+    def debug_loss(self, pred, input):
+
+        residual = self.hard_constraint(pred, input) -  self.exact_solution(input)
+
+        assert residual.numel() == self.nsamples
+
+        return torch.mean(residual ** 2)
 
     def exact_solution(self, input):
 

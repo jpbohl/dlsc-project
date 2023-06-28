@@ -42,11 +42,11 @@ pinn = Pinn(domain, hidden, neurons)
 
 # define optimizer
 
-optimizer_pinn = optim.Adam(pinn.model.parameters(), 
-                            lr=float(0.001))    
+optimizer_pinn = optim.Adam(pinn.parameters(), 
+                            lr=float(0.1))    
 
-optimizer_fbpinn = optim.Adam(fbpinn.models.parameters(),
-                            lr=float(0.001))
+optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
+                            lr=float(0.1))
 
 # training loop FBPiNN
 print("Training FBPINN")
@@ -54,7 +54,7 @@ for i in range(nepochs):
     for input in trainset:
         optimizer_fbpinn.zero_grad()
         pred = fbpinn.forward(input[0])
-        loss = problem.compute_loss(pred, input[0])
+        loss = problem.debug_loss(pred, input[0])
         loss.backward()
         optimizer_fbpinn.step()
 
@@ -75,15 +75,6 @@ for i in range(nepochs):
     if i % 10 == 0:
         print(f"Epoch {i} // Total Loss : {loss.item()}")
 
-
-# training loop PiNN
-for i in range(nepochs):
-    for input in trainset:
-        optimizer_pinn.zero_grad()
-        pred = pinn.forward(input[0])
-        loss = problem.compute_loss(pred, input[0])
-        loss.backward()
-        optimizer_pinn.step()
 
 # do some plots (Figure 7) to visualize ben-moseley style 
 
