@@ -4,8 +4,6 @@ from torch.nn import Module, ModuleList
 from nn import NeuralNet as NN
 
 
-
-
 class FBPinn(Module):
 
     def __init__(self, nwindows, domain, hidden, neurons, overlap, sigma, u_mean=0, u_sd=1):
@@ -32,8 +30,6 @@ class FBPinn(Module):
 
         self.params= params
         
-        #raise NotImplementedError
-
 
     ###  Task Allebasi
     def partition_domain(self):
@@ -70,7 +66,7 @@ class FBPinn(Module):
         normalization. 
         """
 
-        return torch.tensor((self.subdomains[:, 1] + self.subdomains[:, 0]) / 2 )
+        return (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
 
 
     def get_midpoints_overlap(self):
@@ -92,7 +88,6 @@ class FBPinn(Module):
             midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
 
         return midpoints
-        #raise NotImplementedError
 
     def compute_window(self, input, iteration):
         """
@@ -121,7 +116,7 @@ class FBPinn(Module):
             
             # normalize data to given subdomain
             # normalize such that input lies in [-1,1]
-            input_norm = torch.sub(input,self.means[i]) / self.std[i] 
+            input_norm = (input - self.means[i]) / self.std[i] 
             
             #caro: woher kommt self.std ?
             # jan: berechne ich in der innit function
@@ -162,9 +157,6 @@ class Pinn(Module):
 
     def forward(self, input):
 
-
-        pred = torch.zeros_like(self.domain)
-
         model = self.model
         
         # normalize data to given subdomain
@@ -176,4 +168,4 @@ class Pinn(Module):
 
         output = output * self.u_sd + self.u_mean
 
-        return pred
+        return output

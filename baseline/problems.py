@@ -6,7 +6,7 @@ class Cos1d(object):
 
 #define problem together with exact solution to
 #du/dx = cos(ω*x)
-#u(x)=0
+#u(0)=0
 #solution u(x)=1/ω sin(ω*x)
 
     def __init__(self, domain, nsamples, w):
@@ -43,10 +43,7 @@ class Cos1d(object):
         Compute PDE loss using autograd
         """
 
-        input.requires_grad = True
-        pred = self.hard_constraint(pred, input)
-
-        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
+        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
         f = torch.cos(self.w * input) 
         
         assert (dx - f).numel() == self.nsamples
@@ -79,8 +76,6 @@ class Cos1d(object):
     def exact_solution(self, input):
 
         return torch.sin(self.w * input) / self.w
-    
-
 
 
 class Cos1dMulticscale(object):
@@ -89,8 +84,6 @@ class Cos1dMulticscale(object):
 #du/dx = ω1 cos(ω1*x) + ω2 cos(ω2*x)
 #u(x)=0
 #solution u(x)=sin(ω1*x)+sin(ω2*x)
-
-
 
     def __init__(self, domain, nsamples, w):
 
@@ -136,9 +129,7 @@ class Cos1dMulticscale(object):
         Compute PDE loss using autograd
         """
         
-        input.requires_grad = True
-        pred = self.hard_constraint(pred, input)
-        dx = torch.autograd.grad(pred.sum(), input, retain_graph=True)[0]
+        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
         f = self.w1 * torch.cos(self.w1 * input)+ self.w2 * torch.cos(self.w2 * input)
         
         assert (dx - f).numel() == self.nsamples

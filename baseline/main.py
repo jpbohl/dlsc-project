@@ -1,5 +1,4 @@
 import torch
-from torch.utils.data import TensorDataset, DataLoader
 import torch.optim as optim
 
 from fbpinn import FBPinn, Pinn
@@ -19,7 +18,7 @@ import numpy as np
 domain = torch.tensor((0, 1))
 nwindows = 10
 nsamples = 1000
-nepochs = 10 #1000
+nepochs = 1000 #1000
 lr = 0.0001
 hidden = 2
 neurons = 16
@@ -34,33 +33,31 @@ problem = Cos1d(domain, nsamples, w = 15)
 trainset = problem.assemble_dataset()
 
 # define fbpinn model
-fbpinn = FBPinn(nwindows, domain, hidden, neurons, overlap, sigma)
+fbpinn = FBPinn(nwindows, domain, hidden, neurons, overlap, sigma, u_sd=1/15)
 
 # define pinn model
-pinn = Pinn(domain, hidden, neurons) 
+pinn = Pinn(domain, hidden, neurons, u_sd=1/15) 
 
 # Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
 # Caro: gute Idee! dann ist aber auch noch die window function applied - ich schau wie ben das hat
 
+# define optimizers
+optimizer_pinn = optim.Adam(pinn.parameters(), 
+                            lr=float(0.001))    
 
-# define optimizer
-
-optimizer_pinn = optim.Adam(pinn.model.parameters(), 
-                            lr=float(0.1))    
-
-optimizer_fbpinn = optim.Adam(fbpinn.models.parameters(),
-                            lr=float(0.1))
+optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
+                            lr=float(0.001))
 
 # training loop FBPiNN
 print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
-    for input in trainset:
+    for input, in trainset:
         optimizer_fbpinn.zero_grad()
-        pred = fbpinn.forward(input[0])
-        #loss = problem.debug_loss(pred, input[0])
-        loss = problem.compute_loss(pred, input[0])
-        #loss = problem.compute_loss(pred, input[0],verbose=True)
+        input.requires_grad_(True) # allow gradients wrt to input for pde loss
+        pred = fbpinn.forward(input)
+        pred = problem.hard_constraint(pred, input) # apply hard constraint for boundary
+        loss = problem.compute_loss(pred, input)
         loss.backward()
         optimizer_fbpinn.step()
         history_fbpinn.append(loss.item())
@@ -73,10 +70,12 @@ for i in range(nepochs):
 print("Training PINN")
 history_pinn = list()
 for i in range(nepochs):
-    for input in trainset:
+    for input, in trainset:
         optimizer_pinn.zero_grad()
-        pred = pinn.forward(input[0])
-        loss = problem.compute_loss(pred, input[0])
+        input.requires_grad_(True) # allow gradients wrt to input for pde loss
+        pred = pinn.forward(input)
+        pred = problem.hard_constraint(pred, input) # apply hard constraint for boundary
+        loss = problem.compute_loss(pred, input)
         loss.backward()
         optimizer_pinn.step()
         history_pinn.append(loss.item())
@@ -84,15 +83,6 @@ for i in range(nepochs):
     if i % 10 == 0:
         print(f"Epoch {i} // Total Loss : {loss.item()}")
 
-
-# training loop PiNN
-for i in range(nepochs):
-    for input in trainset:
-        optimizer_pinn.zero_grad()
-        pred = pinn.forward(input[0])
-        loss = problem.compute_loss(pred, input[0])
-        loss.backward()
-        optimizer_pinn.step()
 
 # do some plots (Figure 7) to visualize ben-moseley style 
 
