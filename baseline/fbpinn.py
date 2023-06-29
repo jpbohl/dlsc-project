@@ -95,8 +95,8 @@ class FBPinn(Module):
         """
         # 1D case
         
-        x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration]))/self.sigma
-        x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1]))/self.sigma
+        x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
+        x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
         # x_left = (input - self.subdomain[subdomain][0])/self.sigma
         # x_right = (input - self.subdomain[subdomain][1])/self.sigma
         

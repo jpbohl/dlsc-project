@@ -43,10 +43,12 @@ pinn = Pinn(domain, hidden, neurons, u_sd=1/15)
 
 # define optimizers
 optimizer_pinn = optim.Adam(pinn.parameters(), 
-                            lr=float(0.001))    
+                        lr=float(0.001),
+                        weight_decay=1e-3)
 
 optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=float(0.001))
+                            lr=float(0.001),
+                            weight_decay=1e-3)
 
 # training loop FBPiNN
 print("Training FBPINN")
