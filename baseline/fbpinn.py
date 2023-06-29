@@ -109,6 +109,8 @@ class FBPinn(Module):
         Computes forward pass of FBPinn model 
         """
 
+        #output for every subdomain: dimension  nwindows*input
+        fbpinn_output= torch.zeros(self.nwindows,input.size(0))
         pred = torch.zeros_like(input)
         for i in range(self.nwindows):
 
@@ -118,8 +120,6 @@ class FBPinn(Module):
             # normalize such that input lies in [-1,1]
             input_norm = (input - self.means[i]) / self.std[i] 
             
-            #caro: woher kommt self.std ?
-            # jan: berechne ich in der innit function
 
             # model i prediction
             output = model(input_norm.reshape(-1,1)) 
@@ -130,11 +130,17 @@ class FBPinn(Module):
             subdomain = self.subdomains[i, :]
             window = self.compute_window(input, i)
 
+            ind_pred = window * output
+
             # add prediction to total output
             # sum neural networks in overlapping regions
-            pred += window * output
+            pred += ind_pred
 
-        return pred
+            #add it to output tensor in row i
+            fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+        
+
+        return pred, fbpinn_output
 
 
 class Pinn(Module):

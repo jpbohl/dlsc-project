@@ -55,7 +55,7 @@ for i in range(nepochs):
     for input, in trainset:
         optimizer_fbpinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred = fbpinn.forward(input)
+        pred, fbpinn_output = fbpinn.forward(input)
         pred = problem.hard_constraint(pred, input) # apply hard constraint for boundary
         loss = problem.compute_loss(pred, input)
         loss.backward()
@@ -83,10 +83,26 @@ for i in range(nepochs):
     if i % 10 == 0:
         print(f"Epoch {i} // Total Loss : {loss.item()}")
 
-
 # do some plots (Figure 7) to visualize ben-moseley style 
+#use gridspec for final layout
 
 #plot of FBPiNN with subdomain definition - every subdomain different color
+
+'''
+For that we need output of each iteration in forward function -
+but only the last one 
+'''
+
+plt.plot()
+
+for i in range(nwindows):
+    plt.plot(input.detach().numpy(),fbpinn_output[i,].detach().numpy())
+
+plt.ylabel('u')
+plt.xlabel('x')
+plt.title('FBPiNN: individual network solution')
+plt.show()
+
 
 #plot of FBPiNN's solution vs exact solution
 
@@ -94,18 +110,12 @@ for i in range(nepochs):
 
 #Test loss (L1 norm) vs Trainings step
 
-fig, axs = plt.subplots(1, 2, figsize=(16, 8), dpi=150)
 
-axs[0].grid(True, which="both", ls=":")
-im1= axs[0].plot(np.arange(1, len(history_fbpinn) + 1), history_fbpinn, label="Train Loss FBPiNN L2 norm ")
-#plt.xscale("log")
-axs[0].legend()
+plt.plot()
+plt.plot(np.arange(1, len(history_fbpinn) + 1), history_fbpinn, label="Train Loss FBPiNN L2 norm ")
+plt.plot(np.arange(1, len(history_pinn) + 1), history_pinn, label="Train Loss PiNN L2 norm ")
 
-axs[1].grid(True, which="both", ls=":")
-im2= axs[1].plot(np.arange(1, len(history_pinn) + 1), history_pinn, label="Train Loss PiNN L2 norm ")
-#plt.xscale("log")
-axs[1].legend()
-
+plt.title('Comparing training errors')
 plt.show()
 
 #Test loss (L1 norm) vs FLOPS (floating point operations)
