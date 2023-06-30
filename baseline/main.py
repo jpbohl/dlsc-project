@@ -95,6 +95,7 @@ grid = plt.GridSpec(2, 4, hspace=0.2, wspace=0.2)
 fbpinn_subdom= fig.add_subplot(grid[0,:2])
 fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
 training_error_l2=fig.add_subplot(grid[-1,-1])
+pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 #plot of FBPiNN with subdomain definition - every subdomain different color
 
@@ -111,7 +112,6 @@ fbpinn_subdom.set_title('FBPiNN: individual network solution')
 
 #plot of FBPiNN's solution vs exact solution
 
-#plt.plot()
 fbpinn_vs_exact.plot(input.detach().numpy(),pred_fbpinn.detach().numpy())
 fbpinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy())
 fbpinn_vs_exact.set_ylabel('u')
@@ -120,13 +120,19 @@ fbpinn_vs_exact.set_title('FBPiNN: global solution vs exact')
 
 #plot of different PiNN config vs exact solution
 
+pinn_vs_exact.plot(input.detach().numpy(),pred.detach().numpy())
+pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy())
+pinn_vs_exact.set_ylabel('u')
+pinn_vs_exact.set_xlabel('x')
+pinn_vs_exact.set_title('PiNN: global solution vs exact')
+
 #Test loss (L1 norm) vs Trainings step
 
 
 #plt.plot()
 training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), history_fbpinn, label="Train Loss FBPiNN L2 norm ")
 training_error_l2.plot(np.arange(1, len(history_pinn) + 1), history_pinn, label="Train Loss PiNN L2 norm ")
-
+training_error_l2.legend()
 training_error_l2.set_title('Comparing training errors')
 
 plt.show()
