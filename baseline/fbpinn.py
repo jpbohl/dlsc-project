@@ -6,10 +6,11 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, nwindows, domain, hidden, neurons, overlap, sigma, u_mean=0, u_sd=1):
+    def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma, u_mean=0, u_sd=1):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
+        self.problem = problem
         self.domain = domain # domain of the form torch.tensor([[a, b], [c, d], ...]) depending on dimension
         self.overlap = overlap # percentage of overlap of subdomains
         self.sigma = sigma # parameter (set) for window function
@@ -21,15 +22,6 @@ class FBPinn(Module):
         self.u_sd = u_sd
         self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
 
-        # Jan : ich glaube das funktioniert leider nicht die parameter werden dann im Model nicht angepasst
-        #set the parameters to optimize for later
-        params=[]
-        for i in range(len(self.models)):
-            params+=list(self.models[i].parameters())
-
-
-        self.params= params
-        
 
     ###  Task Allebasi
     def partition_domain(self):
@@ -113,7 +105,7 @@ class FBPinn(Module):
         """
 
         #output for every subdomain: dimension  nwindows*input
-        fbpinn_output= torch.zeros(self.nwindows,input.size(0))
+        fbpinn_output = torch.zeros(self.nwindows,input.size(0))
         pred = torch.zeros_like(input)
         for i in range(self.nwindows):
 
@@ -130,7 +122,6 @@ class FBPinn(Module):
             output = output * self.u_sd + self.u_mean
 
             # compute window function for subdomain i
-            subdomain = self.subdomains[i, :]
             window = self.compute_window(input, i)
 
             ind_pred = window * output
@@ -140,17 +131,22 @@ class FBPinn(Module):
             pred += ind_pred
 
             #add it to output tensor in row i
+            ind_pred = self.problem.hard_constraint(input, ind_pred)
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
         
+        pred = self.problem.hard_constraint(input, pred)
 
         return pred, fbpinn_output
 
 
 class Pinn(Module):
 
-    def __init__(self, domain, hidden, neurons, u_mean=0, u_sd=1):
+    def __init__(self, problem, domain, hidden, neurons, u_mean=0, u_sd=1):
 
+        super(Pinn, self).__init__()
         self.domain = domain # domain of the form torch.tensor([a, b])
+
+        self.problem = problem
 
         #parameter for normalize
         self.mean= (domain[1] + domain[0])/2
@@ -160,21 +156,20 @@ class Pinn(Module):
         self.u_mean= u_mean
         self.u_sd=u_sd
 
-        super().__init__()
         self.model= NN(hidden, neurons)
 
 
     def forward(self, input):
 
-        model = self.model
-        
         # normalize data to given subdomain
         # normalize such that input lies in [-1,1]
         input_norm = (input - self.mean) / self.std 
         
         # model prediction
-        output = model(input_norm) 
+        output = self.model(input_norm) 
 
         output = output * self.u_sd + self.u_mean
+
+        output = self.problem.hard_constraint(input, output)
 
         return output

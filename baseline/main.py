@@ -10,23 +10,24 @@ import numpy as np
 
 # define parameters
 # Parameters in paper ω=1 : 
-# domain = torch.tensor((-2*torch.pi, 2*torch.pi))
+domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 # nwindows = 5
 # hidden = 2
 # neurons = 16
 # nepochs = 50000
-# nsamples = 200
-domain = torch.tensor((0, 1))
-nwindows = 10
-nsamples = 1000
-nepochs = 1000 #1000
+nsamples = 200
+#domain = torch.tensor((-1, 1))
+nwindows = 5
+nepochs = 15000 #1000
 lr = 0.0001
 hidden = 2
+pinn_hidden = 4
 neurons = 16
 overlap = 0.25
 sigma = 0.01
+w = 1
 
-problem = Cos1d(domain, nsamples, w = 15)
+problem = Cos1d(domain, nsamples, w = w)
 
 ### Task Caro
 
@@ -34,21 +35,21 @@ problem = Cos1d(domain, nsamples, w = 15)
 trainset = problem.assemble_dataset()
 
 # define fbpinn model
-fbpinn = FBPinn(nwindows, domain, hidden, neurons, overlap, sigma, u_sd=1/15)
+fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma, u_sd=1/w)
 
 # define pinn model
-pinn = Pinn(domain, hidden, neurons, u_sd=1/15) 
+pinn = Pinn(problem, domain, pinn_hidden, neurons, u_sd=1/w)
 
 # Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
 # Caro: gute Idee! dann ist aber auch noch die window function applied - ich schau wie ben das hat
 
 # define optimizers
 optimizer_pinn = optim.Adam(pinn.parameters(), 
-                        lr=float(0.001),
+                        lr=lr,
                         weight_decay=1e-3)
 
 optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=float(0.001),
+                            lr=lr,
                             weight_decay=1e-3)
 
 # training loop FBPiNN
@@ -59,7 +60,7 @@ for i in range(nepochs):
         optimizer_fbpinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
         pred_fbpinn, fbpinn_output = fbpinn.forward(input)
-        pred_fbpinn = problem.hard_constraint(pred_fbpinn, input) # apply hard constraint for boundary
+        #loss = problem.debug_loss(pred_fbpinn, input)
         loss = problem.compute_loss(pred_fbpinn, input)
         loss.backward()
         optimizer_fbpinn.step()
@@ -77,7 +78,6 @@ for i in range(nepochs):
         optimizer_pinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
         pred = pinn.forward(input)
-        pred = problem.hard_constraint(pred, input) # apply hard constraint for boundary
         loss = problem.compute_loss(pred, input)
         loss.backward()
         optimizer_pinn.step()

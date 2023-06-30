@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class NeuralNet(nn.Module):
 
-    def __init__(self, n_hidden_layers, neurons, input_dimension=1, output_dimension=1, regularization_param=0, regularization_exp=2, retrain_seed=0):
+    def __init__(self, n_hidden_layers, neurons, input_dimension=1, output_dimension=1, regularization_param=0, regularization_exp=2, retrain_seed=0, dropout=0.0):
         super(NeuralNet, self).__init__()
         # Number of input dimensions n
         self.input_dimension = input_dimension
@@ -21,7 +21,8 @@ class NeuralNet(nn.Module):
         self.regularization_exp = regularization_exp
         # Random seed for weight initialization
 
-        self.dropout_layer = nn.Dropout(0.2)
+        self.dropout = dropout
+        self.dropout_layer = nn.Dropout(dropout)
 
         self.input_layer = nn.Linear(self.input_dimension, self.neurons)
         self.hidden_layers = nn.ModuleList([nn.Linear(self.neurons, self.neurons) for _ in range(n_hidden_layers - 1)])
@@ -35,8 +36,9 @@ class NeuralNet(nn.Module):
         # (see equation above)
         x = self.activation(self.input_layer(x))
         for k, l in enumerate(self.hidden_layers):
-            xd = self.dropout_layer(l(x))
-            x = self.activation(xd)
+            if self.dropout > 0.0: 
+                x = self.dropout_layer(l(x))
+                x = self.activation(x)
         return self.output_layer(x)
 
     def init_xavier(self):

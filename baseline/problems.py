@@ -67,7 +67,7 @@ class Cos1d(object):
 
     def debug_loss(self, pred, input):
 
-        residual = self.hard_constraint(pred, input) -  self.exact_solution(input)
+        residual = pred -  self.exact_solution(input)
 
         assert residual.numel() == self.nsamples
 
