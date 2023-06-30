@@ -24,7 +24,7 @@ hidden = 2
 pinn_hidden = 4
 neurons = 16
 overlap = 0.25
-sigma = 0.01
+sigma = 0.02
 w = 1
 
 problem = Cos1d(domain, nsamples, w = w)
@@ -140,8 +140,17 @@ plt.show()
 #Test loss (L1 norm) vs FLOPS (floating point operations)
 
 
+
 #add-on: cool plot from fig 6 - with subdomain definition and overlap stuff
 
+for i in range(nwindows):
+  plt.hlines( 0 if i%2 else 0.1, fbpinn.partition_domain()[i][0], fbpinn.partition_domain()[i][1],  linewidth=5)
+plt.hlines(-0.25, fbpinn.partition_domain()[0][0], fbpinn.partition_domain()[nwindows-1][1],  linewidth=2, color = 'tab:grey')
+for j in range(nwindows-1):
+    plt.hlines(-0.25,fbpinn.partition_domain()[j][1], fbpinn.partition_domain()[j+1][0],  linewidth=5, color = 'magenta')
+plt.yticks([-1,0,1])
+
+plt.show()
 
 
 

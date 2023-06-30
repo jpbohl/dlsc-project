@@ -37,6 +37,10 @@ class FBPinn(Module):
             subdomains (tensor) : k x 2 tensor containing 
                 the start and end points of the subdomains with equal overlap on all sides
         """
+        # error when overlap is 0 or smaller
+        if self.overlap <= 0:
+            raise ValueError("Overlap must be greater than 0.")
+        
         subdomains = torch.zeros(self.nwindows, 2)
         
         #problem for 1d: width = (self.domain[0][1]-self.domain[0][0]) / self.nwindows
