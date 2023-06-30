@@ -24,7 +24,7 @@ lr = 0.0001
 hidden = 2
 neurons = 16
 overlap = 0.25
-sigma = 1
+sigma = 0.01
 
 problem = Cos1d(domain, nsamples, w = 15)
 

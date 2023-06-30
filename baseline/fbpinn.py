@@ -94,13 +94,16 @@ class FBPinn(Module):
         Computes window function given input points and domain and parameter sigma
         """
         # 1D case
-        
+        #tol = 1e-5
         x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
         x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
         # x_left = (input - self.subdomain[subdomain][0])/self.sigma
         # x_right = (input - self.subdomain[subdomain][1])/self.sigma
         
-        window = 1/(1+torch.exp(x_left)) * 1/(1+torch.exp(-x_right))
+        window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
+        
+        #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
+        #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
         
         return window
 
