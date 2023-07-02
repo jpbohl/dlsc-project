@@ -21,7 +21,7 @@ domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 200
 #domain = torch.tensor((-1, 1))
 nwindows = 5
-nepochs = 10 #1000
+nepochs = 15  #1000
 lr = 0.0001
 hidden = 2
 pinn_hidden = 4
@@ -60,10 +60,13 @@ print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
     for input, in trainset:
+
         optimizer_fbpinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
         pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
+        
         #loss = problem.debug_loss(pred_fbpinn, input)
+
         loss = problem.compute_loss(pred_fbpinn, input)
         loss.backward()
         optimizer_fbpinn.step()
@@ -162,9 +165,6 @@ window_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window functi
 window_fct.set_xlabel('x')
 window_fct.set_title('FBPiNN window function and domains')
 
-plt.show()
-
-
 current_working_directory = os.getcwd()
 target_dir =current_working_directory + '/results/'
 
@@ -174,3 +174,4 @@ plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
 
 plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
+plt.show()
