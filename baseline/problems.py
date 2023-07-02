@@ -14,6 +14,7 @@ class Cos1d(object):
         self.domain = domain
         self.nsamples = nsamples
         self.w = w
+        self.u_sd = 1 / w # set sd for unnormalization
 
     def assemble_dataset(self):
         """
@@ -27,7 +28,7 @@ class Cos1d(object):
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
 
         #in 1d we sort the points in ascending order 
-        points, indices = torch.sort(points, dim=-2)
+        points, indices = torch.sort(points)
 
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
@@ -94,6 +95,9 @@ class Cos1dMulticscale(object):
         self.w1 = w[0]
         self.w2 = w[1]
 
+        # set sd for unnormalization
+        self.u_sd = 2
+
         self.training_dataset = self.assemble_dataset()
 
     def assemble_dataset(self):
@@ -109,7 +113,7 @@ class Cos1dMulticscale(object):
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0] #maybe - ?
         
         #in 1d we sort the points in ascending order 
-        points, indices =torch.sort(points, dim=-2)
+        points, indices = torch.sort(points, dim=-2)
         
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
@@ -122,7 +126,7 @@ class Cos1dMulticscale(object):
         boundary conditions
         """
 
-        return torch.tanh(self.w1 * input) * torch.tanh(self.w2 * input) * pred 
+        return torch.tanh(self.w2 * input) * pred 
 
     def compute_pde_residual(self, pred, input):
         """
@@ -130,7 +134,7 @@ class Cos1dMulticscale(object):
         """
         
         dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
-        f = self.w1 * torch.cos(self.w1 * input)+ self.w2 * torch.cos(self.w2 * input)
+        f = self.w1 * torch.cos(self.w1 * input) + self.w2 * torch.cos(self.w2 * input)
         
         assert (dx - f).numel() == self.nsamples
 
@@ -140,8 +144,7 @@ class Cos1dMulticscale(object):
         """
         Compute loss by applying the norm to the pde residual 
         """
-
-
+        
         #unsupervised
         r_int  = self.compute_pde_residual(pred, input)
         loss_int = torch.mean(abs(r_int) ** 2)
@@ -152,6 +155,14 @@ class Cos1dMulticscale(object):
         if verbose: print("Total loss: ", round(loss.item(), 4))
 
         return loss
+    
+    def debug_loss(self, pred, input):
+
+        residual = pred -  self.exact_solution(input)
+
+        assert residual.numel() == self.nsamples
+
+        return torch.mean(residual ** 2)
 
 
     def exact_solution(self, input):

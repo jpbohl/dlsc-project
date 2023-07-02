@@ -23,6 +23,7 @@ class FBPinn(Module):
         self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
 
 
+
     ###  Task Allebasi
     def partition_domain(self):
         """
@@ -121,7 +122,7 @@ class FBPinn(Module):
             
 
             # model i prediction
-            output = model(input_norm.reshape(-1,1)) 
+            output = model(input_norm.reshape(-1,1))
 
             output = output * self.u_sd + self.u_mean
 

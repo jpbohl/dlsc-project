@@ -9,36 +9,30 @@ from matplotlib.gridspec import GridSpec
 import numpy as np
 
 # define parameters
-# Parameters in paper ω=1 : 
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-# nwindows = 5
-# hidden = 2
-# neurons = 16
-# nepochs = 50000
-nsamples = 200
-#domain = torch.tensor((-1, 1))
-nwindows = 5
-nepochs = 15000 #1000
-lr = 0.0001
+nsamples = 3000
+nwindows = 30
+nepochs = 5000
+lr = 0.001
 hidden = 2
-pinn_hidden = 4
+pinn_hidden = 5
 neurons = 16
+pinn_neurons = 128
 overlap = 0.25
 sigma = 0.02
-w = 1
+w = 15
 
-problem = Cos1d(domain, nsamples, w = w)
-
-### Task Caro
+problem = Cos1d(domain, nsamples, w)
+#problem = Cos1dMulticscale(domain, nsamples, w = w)
 
 # get training set
 trainset = problem.assemble_dataset()
 
 # define fbpinn model
-fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma, u_sd=1/w)
+fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma, u_sd=problem.u_sd)
 
 # define pinn model
-pinn = Pinn(problem, domain, pinn_hidden, neurons, u_sd=1/w)
+pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons, u_sd=problem.u_sd)
 
 # Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
 # Caro: gute Idee! dann ist aber auch noch die window function applied - ich schau wie ben das hat
@@ -52,17 +46,18 @@ optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
                             lr=lr,
                             weight_decay=1e-3)
 
+
 # training loop FBPiNN
 print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
     for input, in trainset:
         optimizer_fbpinn.zero_grad()
-        input.requires_grad_(True) # allow gradients wrt to input for pde loss
+        input.requires_grad_(True)
         pred_fbpinn, fbpinn_output = fbpinn.forward(input)
         #loss = problem.debug_loss(pred_fbpinn, input)
         loss = problem.compute_loss(pred_fbpinn, input)
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer_fbpinn.step()
         history_fbpinn.append(loss.item())
 
@@ -79,6 +74,7 @@ for i in range(nepochs):
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
         pred = pinn.forward(input)
         loss = problem.compute_loss(pred, input)
+        #loss = problem.debug_loss(pred, input)
         loss.backward()
         optimizer_pinn.step()
         history_pinn.append(loss.item())
