@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
 
+import os 
+from datetime import datetime
+
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
@@ -52,10 +55,13 @@ print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
     for input, in trainset:
+
         optimizer_fbpinn.zero_grad()
-        input.requires_grad_(True)
-        pred_fbpinn, fbpinn_output = fbpinn.forward(input)
+        input.requires_grad_(True) # allow gradients wrt to input for pde loss
+        pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
+        
         #loss = problem.debug_loss(pred_fbpinn, input)
+
         loss = problem.compute_loss(pred_fbpinn, input)
         loss.backward(retain_graph=True)
         optimizer_fbpinn.step()
@@ -86,10 +92,11 @@ for i in range(nepochs):
 #use gridspec for final layout
 
 fig = plt.figure(figsize=(15,8))
-grid = plt.GridSpec(2, 4, hspace=0.2, wspace=0.2)
+grid = plt.GridSpec(3, 4, hspace=0.4, wspace=0.2)
 
 fbpinn_subdom= fig.add_subplot(grid[0,:2])
 fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
+window_fct= fig.add_subplot(grid[1,0:2])
 training_error_l2=fig.add_subplot(grid[-1,-1])
 pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
@@ -131,7 +138,7 @@ training_error_l2.plot(np.arange(1, len(history_pinn) + 1), history_pinn, label=
 training_error_l2.legend()
 training_error_l2.set_title('Comparing training errors')
 
-plt.show()
+
 
 #Test loss (L1 norm) vs FLOPS (floating point operations)
 
@@ -140,13 +147,27 @@ plt.show()
 #add-on: cool plot from fig 6 - with subdomain definition and overlap stuff
 
 for i in range(nwindows):
-  plt.hlines( 0 if i%2 else 0.1, fbpinn.partition_domain()[i][0], fbpinn.partition_domain()[i][1],  linewidth=5)
-plt.hlines(-0.25, fbpinn.partition_domain()[0][0], fbpinn.partition_domain()[nwindows-1][1],  linewidth=2, color = 'tab:grey')
+  window_fct.hlines( -0.5 if i%2 else -0.4, fbpinn.partition_domain()[i][0], fbpinn.partition_domain()[i][1],  linewidth=5)
+   
+window_fct.hlines(-1, fbpinn.partition_domain()[0][0], fbpinn.partition_domain()[nwindows-1][1],  linewidth=2, color = 'tab:grey')
 for j in range(nwindows-1):
-    plt.hlines(-0.25,fbpinn.partition_domain()[j][1], fbpinn.partition_domain()[j+1][0],  linewidth=5, color = 'magenta')
-plt.yticks([-1,0,1])
+    window_fct.hlines(-1,fbpinn.partition_domain()[j][1], fbpinn.partition_domain()[j+1][0],  linewidth=5, color = 'magenta')
+
+for i in range(nwindows):
+    window_fct.plot(input.detach().numpy(),window_output[i,].detach().numpy())
+
+
+window_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
+window_fct.set_xlabel('x')
+window_fct.set_title('FBPiNN window function and domains')
+
+current_working_directory = os.getcwd()
+target_dir =current_working_directory + '/results/'
+
+now = datetime.now()
+dt_string = now.strftime("%d_%m_%Y_%H:%M")
+plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
+
+plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
-
-
-
