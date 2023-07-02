@@ -15,6 +15,7 @@ class Cos1d(object):
         self.nsamples = nsamples
         self.w = w
         self.u_sd = 1 / w # set sd for unnormalization
+        self.u_mean = 0
 
     def assemble_dataset(self):
         """
@@ -28,7 +29,7 @@ class Cos1d(object):
         points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
 
         #in 1d we sort the points in ascending order 
-        points, indices = torch.sort(points)
+        points, indices = torch.sort(points, dim=-2)
 
         dataset = TensorDataset(points)
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
@@ -97,6 +98,7 @@ class Cos1dMulticscale(object):
 
         # set sd for unnormalization
         self.u_sd = 2
+        self.u_mean = 0
 
         self.training_dataset = self.assemble_dataset()
 

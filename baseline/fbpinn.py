@@ -6,7 +6,7 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma, u_mean=0, u_sd=1):
+    def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
@@ -18,8 +18,8 @@ class FBPinn(Module):
         self.means = self.get_midpoints()
         self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
 
-        self.u_mean = u_mean
-        self.u_sd = u_sd
+        self.u_mean = problem.u_mean
+        self.u_sd = problem.u_sd
         self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
 
 
@@ -148,7 +148,7 @@ class FBPinn(Module):
 
 class Pinn(Module):
 
-    def __init__(self, problem, domain, hidden, neurons, u_mean=0, u_sd=1):
+    def __init__(self, problem, domain, hidden, neurons):
 
         super(Pinn, self).__init__()
         self.domain = domain # domain of the form torch.tensor([a, b])
@@ -156,12 +156,12 @@ class Pinn(Module):
         self.problem = problem
 
         #parameter for normalize
-        self.mean= (domain[1] + domain[0])/2
+        self.mean = (domain[1] + domain[0])/2
         self.std = (domain[1] - domain[0])/2
         
         #parameters for unnormalize
-        self.u_mean= u_mean
-        self.u_sd=u_sd
+        self.u_mean = problem.u_mean
+        self.u_sd = problem.u_sd
 
         self.model= NN(hidden, neurons)
 

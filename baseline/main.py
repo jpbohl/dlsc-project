@@ -13,17 +13,17 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 3000
-nwindows = 30
+nsamples = 200
+nwindows = 5
 nepochs = 5000
 lr = 0.001
 hidden = 2
-pinn_hidden = 5
+pinn_hidden = 2
 neurons = 16
-pinn_neurons = 128
+pinn_neurons = 16
 overlap = 0.25
 sigma = 0.02
-w = 15
+w = 1
 
 problem = Cos1d(domain, nsamples, w)
 #problem = Cos1dMulticscale(domain, nsamples, w = w)
@@ -32,18 +32,17 @@ problem = Cos1d(domain, nsamples, w)
 trainset = problem.assemble_dataset()
 
 # define fbpinn model
-fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma, u_sd=problem.u_sd)
+fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
 
 # define pinn model
-pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons, u_sd=problem.u_sd)
+pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 
 # Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
 # Caro: gute Idee! dann ist aber auch noch die window function applied - ich schau wie ben das hat
 
 # define optimizers
 optimizer_pinn = optim.Adam(pinn.parameters(), 
-                        lr=lr,
-                        weight_decay=1e-3)
+                        lr=lr)
 
 optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
                             lr=lr,
