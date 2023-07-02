@@ -110,6 +110,7 @@ class FBPinn(Module):
 
         #output for every subdomain: dimension  nwindows*input
         fbpinn_output = torch.zeros(self.nwindows,input.size(0))
+        window_output = torch.zeros(self.nwindows,input.size(0))
         pred = torch.zeros_like(input)
         for i in range(self.nwindows):
 
@@ -136,11 +137,12 @@ class FBPinn(Module):
 
             #add it to output tensor in row i
             ind_pred = self.problem.hard_constraint(input, ind_pred)
+            window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
         
         pred = self.problem.hard_constraint(input, pred)
 
-        return pred, fbpinn_output
+        return pred, fbpinn_output, window_output
 
 
 class Pinn(Module):
