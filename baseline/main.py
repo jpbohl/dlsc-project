@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 
 from fbpinn import FBPinn, Pinn
-from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder
+from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder, Cos1dMulticscale_Extention
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -15,7 +15,7 @@ from datetime import datetime
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 300
 nwindows = 30
-nepochs = 30
+nepochs = 200
 nepochs_pinn = 500
 lr = 1e-3
 hidden = 2
@@ -24,10 +24,13 @@ neurons = 16
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 15
+# w = 15
+w = (1, 2, 4, 8, 16)
 
-#problem = Sin1dSecondOrder(domain, nsamples, w)
-problem = Cos1d(domain, nsamples, w)
+
+problem = Cos1dMulticscale_Extention(domain, nsamples, w)
+# problem = Sin1dSecondOrder(domain, nsamples, w)
+# problem = Cos1d(domain, nsamples, w)
 
 # get training set
 trainset = problem.assemble_dataset()
@@ -39,26 +42,26 @@ fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 
 # define optimizers
-# optimizer_pinn = optim.Adam(pinn.parameters(), 
-#                         lr=lr)
+optimizer_pinn = optim.Adam(pinn.parameters(), 
+                        lr=lr)
 
-# optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-#                             lr=lr)
+optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
+                            lr=lr)
 
-optimizer_pinn = optim.LBFGS(pinn.parameters(),
-                              lr=float(0.5),
-                              max_iter=50,
-                              max_eval=50000,
-                              history_size=150,
-                              line_search_fn="strong_wolfe",
-                              tolerance_change=0.5 * np.finfo(float).eps)
-optimizer_fbpinn = optim.LBFGS(fbpinn.parameters(),
-                              lr=float(0.5),
-                              max_iter=50,
-                              max_eval=50000,
-                              history_size=150,
-                              line_search_fn="strong_wolfe",
-                              tolerance_change=0.5 * np.finfo(float).eps)
+# optimizer_pinn = optim.LBFGS(pinn.parameters(),
+#                               lr=float(0.5),
+#                               max_iter=50,
+#                               max_eval=50000,
+#                               history_size=150,
+#                               line_search_fn="strong_wolfe",
+#                               tolerance_change=0.5 * np.finfo(float).eps)
+# optimizer_fbpinn = optim.LBFGS(fbpinn.parameters(),
+#                               lr=float(0.5),
+#                               max_iter=50,
+#                               max_eval=50000,
+#                               history_size=150,
+#                               line_search_fn="strong_wolfe",
+#                               tolerance_change=0.5 * np.finfo(float).eps)
 
 
 # training loop FBPiNN
