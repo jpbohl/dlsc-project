@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module, ModuleList
-from torch.optim import Adam
+from torch.optim import Adam, LBFGS
 
 from nn import NeuralNet as NN
 
@@ -171,22 +171,22 @@ class FBPINNTrainer:
         for i in range(nepochs):
             
             for input, in trainset:
+
+                def closure():
+                    self.optimizer.zero_grad()
+                    input.requires_grad_(True) # allow gradients wrt to input for pde loss
+                    pred, _, __ = self.fbpinn(input)
+                    loss = self.problem.compute_loss(pred, input)
+                    loss.backward(retain_graph=True)
+                    history.append(loss.item())
+
+                    print(f"Loss : {loss.item()}")
+                    return loss
                 
-                self.optimizer.zero_grad()
-                input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                pred, fbpinn_output, window_output = self.fbpinn(input)
-                loss = self.problem.compute_loss(pred, input)
-                #loss = problem.debug_loss(pred, input)
-                loss.backward()
-                self.optimizer.step()
-                history.append(loss.item())
-                
-                # checks whether model output has changed
-                assert(not torch.equal(pred, self.fbpinn(input)[0]))
-            
-            if i % 10 == 0:
-                
-                print(f"Epoch {i} // Total Loss : {loss.item()}")
+            self.optimizer.step(closure=closure)
+
+            input = next(iter(trainset))[0]
+            pred, fbpinn_output, window_output = self.fbpinn(input)
         
         return pred, fbpinn_output, window_output, history
     
@@ -270,23 +270,25 @@ class PINNTrainer:
             
             for input, in trainset:
                 
-                self.optimizer.zero_grad()
-                input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                pred = self.pinn(input)
-                loss = self.problem.compute_loss(pred, input)
-                #loss = problem.debug_loss(pred, input)
-                loss.backward()
-                self.optimizer.step()
-                history.append(loss.item())
-                
-                # checks whether model output has changed
-                assert(not torch.equal(pred, self.pinn(input)[0]))
+                def closure():
+                    self.optimizer.zero_grad()
+                    input.requires_grad_(True) # allow gradients wrt to input for pde loss
+                    pred = self.pinn(input)
+                    loss = self.problem.compute_loss(pred, input)
+                    loss.backward(retain_graph=True)
+                    history.append(loss.item())
 
-            
-            if i % 10 == 0:
+                    print(f"Epoch {i} // Total Loss : {loss.item()}")
+                    return loss
                 
-                print(f"Epoch {i} // Total Loss : {loss.item()}")
-        
+                self.optimizer.step(closure=closure)
+                
+            
+
+
+            input = next(iter(trainset))[0]
+            pred = self.pinn(input)
+
         return pred, history
 
     def test(self):

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+total_params = lambda model: sum(p.numel() for p in model.parameters())
 
 class NeuralNet(nn.Module):
 
@@ -31,6 +32,13 @@ class NeuralNet(nn.Module):
         # Random Seed for weight initialization
         self.init_xavier()
 
+        d1,d2,h,l = input_dimension, output_dimension, neurons, n_hidden_layers
+        self.size =           d1*h + h         + (l)*(  h*h + h)        +   h*d2 + d2
+        self._single_flop = 2*d1*h + h + 5*h   + (l)*(2*h*h + h + 5*h)  + 2*h*d2 + d2 # assumes Tanh uses 5 FLOPS
+        self.flops = lambda BATCH_SIZE: BATCH_SIZE*self._single_flop
+        assert self.size == total_params(self)
+
+
     def forward(self, x):
         # The forward function performs the set of affine and non-linear transformations defining the network
         # (see equation above)
@@ -39,9 +47,7 @@ class NeuralNet(nn.Module):
             if self.dropout > 0.0: 
                 x = self.dropout_layer(l(x))
                 x = self.activation(x)
-            
             x = self.activation(l(x))
-            
         return self.output_layer(x)
 
     def init_xavier(self):

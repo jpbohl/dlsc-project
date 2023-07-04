@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 
 from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
-from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder
+from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder, Cos1dMulticscale_Extention
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -13,7 +13,7 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 3000
+nsamples = 300
 nwindows = 30
 nepochs = 1000
 nepochs_pinn = 1000
@@ -25,9 +25,11 @@ pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
 w = 15
+#w = (1, 2, 4, 8, 16)
 
-problem = Sin1dSecondOrder(domain, nsamples, w)
-#problem = Cos1d(domain, nsamples, w)
+#problem = Cos1dMulticscale_Extention(domain, nsamples, w)
+# problem = Sin1dSecondOrder(domain, nsamples, w)
+problem = Cos1d(domain, nsamples, w)
 
 # get training set
 trainset = problem.assemble_dataset()
@@ -69,7 +71,7 @@ pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 
 #plt.plot()
-
+pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
 for i in range(nwindows):
     fbpinn_subdom.plot(input.detach().numpy(),fbpinn_output[i,].detach().numpy())
 
@@ -87,7 +89,7 @@ fbpinn_vs_exact.set_xlabel('x')
 fbpinn_vs_exact.set_title('FBPiNN: global solution vs exact')
 
 #plot of different PiNN config vs exact solution
-
+pred = pinn.forward(input)
 pinn_vs_exact.plot(input.detach().numpy(),pred.detach().numpy())
 pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy())
 pinn_vs_exact.set_ylabel('u')
