@@ -1,5 +1,6 @@
 import torch
 from torch.nn import Module, ModuleList
+from torch.optim import Adam
 
 from nn import NeuralNet as NN
 
@@ -146,10 +147,72 @@ class FBPinn(Module):
             ind_pred = self.problem.hard_constraint(input, ind_pred)
             window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
-        
-        pred = self.problem.hard_constraint(input, pred)
 
+        pred = self.problem.hard_constraint(pred, input)
+        
         return pred, fbpinn_output, window_output
+
+
+class FBPINNTrainer:
+
+    def __init__(self, fbpinn, lr, problem):
+
+        self.fbpinn = fbpinn
+        self.optimizer = Adam(fbpinn.parameters(),
+                            lr=lr)
+        self.problem = problem
+        
+
+    def train(self, nepochs, trainset): 
+        print("Training FBPINN")
+        
+        history = list()
+        
+        for i in range(nepochs):
+            
+            for input, in trainset:
+                
+                self.optimizer.zero_grad()
+                input.requires_grad_(True) # allow gradients wrt to input for pde loss
+                pred, fbpinn_output, window_output = self.fbpinn(input)
+                loss = self.problem.compute_loss(pred, input)
+                #loss = problem.debug_loss(pred, input)
+                loss.backward()
+                self.optimizer.step()
+                history.append(loss.item())
+                
+                # checks whether model output has changed
+                assert(not torch.equal(pred, self.fbpinn(input)[0]))
+            
+            if i % 10 == 0:
+                
+                print(f"Epoch {i} // Total Loss : {loss.item()}")
+        
+        return pred, fbpinn_output, window_output, history
+    
+    def test(self):
+
+        domain = self.problem.domain
+        ntest = 1000
+        points = torch.rand(ntest).reshape(-1, 1)
+        points = points * (domain[1] - domain[0]) + domain[0]
+
+        self.fbpinn.eval()
+        pred, _, __ = self.fbpinn(points)
+        true = self.problem.exact_solution(points)
+
+        # check that no unwanted broadcasting occured
+        assert (pred - true).numel() == ntest
+
+        relative_L2 = torch.sqrt(torch.sum((pred - true) ** 2) / torch.sum(true ** 2))
+
+        return relative_L2.item()
+
+###############################################################################
+
+# PINNs
+
+###############################################################################
 
 
 class Pinn(Module):
@@ -182,7 +245,64 @@ class Pinn(Module):
         output = self.model(input_norm) 
 
         output = output * self.u_sd + self.u_mean
-
-        output = self.problem.hard_constraint(input_norm, output)
+        
+        output = self.problem.hard_constraint(output, input)
 
         return output
+
+class PINNTrainer:
+
+    def __init__(self, pinn, lr, problem):
+
+        self.pinn = pinn
+        self.optimizer = Adam(pinn.parameters(),
+                            lr=lr)
+        self.problem = problem
+        
+
+    def train(self, nepochs, trainset): 
+        
+        print("Training PINN")
+        
+        history = list()
+        
+        for i in range(nepochs):
+            
+            for input, in trainset:
+                
+                self.optimizer.zero_grad()
+                input.requires_grad_(True) # allow gradients wrt to input for pde loss
+                pred = self.pinn(input)
+                loss = self.problem.compute_loss(pred, input)
+                #loss = problem.debug_loss(pred, input)
+                loss.backward()
+                self.optimizer.step()
+                history.append(loss.item())
+                
+                # checks whether model output has changed
+                assert(not torch.equal(pred, self.pinn(input)[0]))
+
+            
+            if i % 10 == 0:
+                
+                print(f"Epoch {i} // Total Loss : {loss.item()}")
+        
+        return pred, history
+
+    def test(self):
+
+        domain = self.problem.domain
+        ntest = 1000
+        points = torch.rand(ntest).reshape(-1, 1)
+        points = points * (domain[1] - domain[0]) + domain[0]
+
+        self.pinn.eval()
+        pred = self.pinn(points)
+        true = self.problem.exact_solution(points)
+
+        # check that no unwanted broadcasting occured
+        assert (pred - true).numel() == ntest
+
+        relative_L2 = torch.sqrt(torch.sum((pred - true) ** 2) / torch.sum(true ** 2))
+
+        return relative_L2.item()

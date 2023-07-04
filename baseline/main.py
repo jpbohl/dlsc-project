@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 
-from fbpinn import FBPinn, Pinn
+from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
 from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder
 
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ from datetime import datetime
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
 nwindows = 30
-nepochs = 5000
-nepochs_pinn = 5000
+nepochs = 1000
+nepochs_pinn = 1000
 lr = 1e-3
 hidden = 2
 pinn_hidden = 4
@@ -26,65 +26,32 @@ overlap = 0.25
 sigma = 0.02
 w = 15
 
-#problem = Sin1dSecondOrder(domain, nsamples, w)
-problem = Cos1d(domain, nsamples, w)
+problem = Sin1dSecondOrder(domain, nsamples, w)
+#problem = Cos1d(domain, nsamples, w)
 
 # get training set
 trainset = problem.assemble_dataset()
+input = next(iter(trainset))[0] # get input points for plotting
 
-# define fbpinn model
+# define fbpinn model and trainer
 fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
+fbpinn_trainer = FBPINNTrainer(fbpinn, lr, problem)
 
-# define pinn model
+# define pinn model and trainer
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
+pinn_trainer = PINNTrainer(pinn, lr, problem)
 
-# define optimizers
-optimizer_pinn = optim.Adam(pinn.parameters(), 
-                        lr=lr)
+pred_fbpinn, fbpinn_output, window_output, history_fbpinn = fbpinn_trainer.train(nepochs, trainset)
 
-optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=lr)
+# Realtive L2 Test Loss
+relativeL2 = fbpinn_trainer.test()
+print("Relative L2 Loss: ", relativeL2)
 
-# training loop FBPiNN
-print("Training FBPINN")
-history_fbpinn = list()
-for i in range(nepochs):
-    for input, in trainset:
-        optimizer_fbpinn.zero_grad()
-        input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred_fbpinn, fbpinn_output, window_output = fbpinn(input)
-        loss = problem.compute_loss(pred_fbpinn, input)
-        #loss = problem.debug_loss(pred_fbpinn, input)
-        loss.backward()
-        optimizer_fbpinn.step()
-        history_fbpinn.append(loss.item())
-        
-        # checks whether model output has changed
-        assert(not torch.equal(pred_fbpinn, fbpinn(input)[0]))
+pred, history_pinn = pinn_trainer.train(nepochs, trainset)
 
-    if i % 10 == 0:
-        print(f"Epoch {i} // Total Loss : {loss.item()}")
-
-
-# training loop PiNN
-print("Training PINN")
-history_pinn = list()
-for i in range(nepochs_pinn):
-    for input, in trainset:
-        optimizer_pinn.zero_grad()
-        input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred = pinn(input)
-        loss = problem.compute_loss(pred, input)
-        #loss = problem.debug_loss(pred, input)
-        loss.backward()
-        optimizer_pinn.step()
-        history_pinn.append(loss.item())
-
-        # checks whether model output has changed
-        assert(not torch.equal(pred, pinn(input)))
-    
-    if i % 10 == 0:
-        print(f"Epoch {i} // Total Loss : {loss.item()}")
+# Realtive L2 Test Loss
+relativeL2 = pinn_trainer.test()
+print("Relative L2 Loss: ", relativeL2)
 
 # do some plots (Figure 7) to visualize ben-moseley style 
 #use gridspec for final layout

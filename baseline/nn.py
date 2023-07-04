@@ -25,7 +25,7 @@ class NeuralNet(nn.Module):
         self.dropout_layer = nn.Dropout(dropout)
 
         self.input_layer = nn.Linear(self.input_dimension, self.neurons)
-        self.hidden_layers = nn.ModuleList([nn.Linear(self.neurons, self.neurons) for _ in range(n_hidden_layers - 1)])
+        self.hidden_layers = nn.ModuleList([nn.Linear(self.neurons, self.neurons) for _ in range(n_hidden_layers)])
         self.output_layer = nn.Linear(self.neurons, self.output_dimension)
         self.retrain_seed = retrain_seed
         # Random Seed for weight initialization
@@ -39,6 +39,9 @@ class NeuralNet(nn.Module):
             if self.dropout > 0.0: 
                 x = self.dropout_layer(l(x))
                 x = self.activation(x)
+            
+            x = self.activation(l(x))
+            
         return self.output_layer(x)
 
     def init_xavier(self):
