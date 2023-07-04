@@ -13,10 +13,10 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 3000
+nsamples = 300
 nwindows = 30
-nepochs = 5000
-nepochs_pinn = 5000
+nepochs = 30
+nepochs_pinn = 500
 lr = 1e-3
 hidden = 2
 pinn_hidden = 4
@@ -39,31 +39,46 @@ fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 
 # define optimizers
-optimizer_pinn = optim.Adam(pinn.parameters(), 
-                        lr=lr)
+# optimizer_pinn = optim.Adam(pinn.parameters(), 
+#                         lr=lr)
 
-optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=lr)
+# optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
+#                             lr=lr)
+
+optimizer_pinn = optim.LBFGS(pinn.parameters(),
+                              lr=float(0.5),
+                              max_iter=50,
+                              max_eval=50000,
+                              history_size=150,
+                              line_search_fn="strong_wolfe",
+                              tolerance_change=0.5 * np.finfo(float).eps)
+optimizer_fbpinn = optim.LBFGS(fbpinn.parameters(),
+                              lr=float(0.5),
+                              max_iter=50,
+                              max_eval=50000,
+                              history_size=150,
+                              line_search_fn="strong_wolfe",
+                              tolerance_change=0.5 * np.finfo(float).eps)
+
 
 # training loop FBPiNN
 print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
     for input, in trainset:
-        optimizer_fbpinn.zero_grad()
-        input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred_fbpinn, fbpinn_output, window_output = fbpinn(input)
-        loss = problem.compute_loss(pred_fbpinn, input)
-        #loss = problem.debug_loss(pred_fbpinn, input)
-        loss.backward()
-        optimizer_fbpinn.step()
-        history_fbpinn.append(loss.item())
-        
-        # checks whether model output has changed
-        assert(not torch.equal(pred_fbpinn, fbpinn(input)[0]))
-
+        def closure():
+            optimizer_fbpinn.zero_grad()
+            input.requires_grad_(True) # allow gradients wrt to input for pde loss
+            pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
+            #loss = problem.debug_loss(pred_fbpinn, input)
+            loss = problem.compute_loss(pred_fbpinn, input)
+            loss.backward(retain_graph=True)
+            #optimizer_fbpinn.step()
+            history_fbpinn.append(loss.item())
+            return loss
+        optimizer_fbpinn.step(closure=closure)
     if i % 10 == 0:
-        print(f"Epoch {i} // Total Loss : {loss.item()}")
+        print(f"Epoch {i} // Total Loss : {history_fbpinn[-1]}")
 
 
 # training loop PiNN
@@ -71,20 +86,60 @@ print("Training PINN")
 history_pinn = list()
 for i in range(nepochs_pinn):
     for input, in trainset:
-        optimizer_pinn.zero_grad()
-        input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred = pinn(input)
-        loss = problem.compute_loss(pred, input)
-        #loss = problem.debug_loss(pred, input)
-        loss.backward()
-        optimizer_pinn.step()
-        history_pinn.append(loss.item())
-
-        # checks whether model output has changed
-        assert(not torch.equal(pred, pinn(input)))
+        def closure():
+            optimizer_pinn.zero_grad()
+            input.requires_grad_(True) # allow gradients wrt to input for pde loss
+            pred = pinn.forward(input)
+            loss_pinn = problem.compute_loss(pred, input)
+            #loss = problem.debug_loss(pred, input)
+            loss_pinn.backward(retain_graph=True)
+            history_pinn.append(loss_pinn.item())
+            return loss_pinn   
+        optimizer_pinn.step(closure=closure)
     
     if i % 10 == 0:
-        print(f"Epoch {i} // Total Loss : {loss.item()}")
+        print(f"Epoch {i} // Total Loss : {history_pinn[-1]}")
+
+# # training loop FBPiNN
+# print("Training FBPINN")
+# history_fbpinn = list()
+# for i in range(nepochs):
+#     for input, in trainset:
+#         optimizer_fbpinn.zero_grad()
+#         input.requires_grad_(True) # allow gradients wrt to input for pde loss
+#         pred_fbpinn, fbpinn_output, window_output = fbpinn(input)
+#         loss = problem.compute_loss(pred_fbpinn, input)
+#         #loss = problem.debug_loss(pred_fbpinn, input)
+#         loss.backward()
+#         optimizer_fbpinn.step()
+#         history_fbpinn.append(loss.item())
+        
+#         # checks whether model output has changed
+#         assert(not torch.equal(pred_fbpinn, fbpinn(input)[0]))
+
+#     if i % 10 == 0:
+#         print(f"Epoch {i} // Total Loss : {loss.item()}")
+
+
+# # training loop PiNN
+# print("Training PINN")
+# history_pinn = list()
+# for i in range(nepochs_pinn):
+#     for input, in trainset:
+#         optimizer_pinn.zero_grad()
+#         input.requires_grad_(True) # allow gradients wrt to input for pde loss
+#         pred = pinn(input)
+#         loss = problem.compute_loss(pred, input)
+#         #loss = problem.debug_loss(pred, input)
+#         loss.backward()
+#         optimizer_pinn.step()
+#         history_pinn.append(loss.item())
+
+#         # checks whether model output has changed
+#         assert(not torch.equal(pred, pinn(input)))
+    
+#     if i % 10 == 0:
+#         print(f"Epoch {i} // Total Loss : {loss.item()}")
 
 # do some plots (Figure 7) to visualize ben-moseley style 
 #use gridspec for final layout
@@ -102,7 +157,7 @@ pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 
 #plt.plot()
-
+pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
 for i in range(nwindows):
     fbpinn_subdom.plot(input.detach().numpy(),fbpinn_output[i,].detach().numpy())
 
@@ -120,7 +175,7 @@ fbpinn_vs_exact.set_xlabel('x')
 fbpinn_vs_exact.set_title('FBPiNN: global solution vs exact')
 
 #plot of different PiNN config vs exact solution
-
+pred = pinn.forward(input)
 pinn_vs_exact.plot(input.detach().numpy(),pred.detach().numpy())
 pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy())
 pinn_vs_exact.set_ylabel('u')
