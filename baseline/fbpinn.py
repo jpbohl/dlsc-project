@@ -2,6 +2,8 @@ import torch
 from torch.nn import Module, ModuleList
 from torch.optim import Adam, LBFGS
 
+import numpy as np
+
 from nn import NeuralNet as NN
 
 
@@ -114,6 +116,7 @@ class FBPinn(Module):
         fbpinn_output = torch.zeros(self.nwindows,input.size(0))
         window_output = torch.zeros(self.nwindows,input.size(0))
         pred = torch.zeros_like(input)
+        flops=0
         for i in range(self.nwindows):
 
             model = self.models[i] # get model i
@@ -148,9 +151,13 @@ class FBPinn(Module):
             window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
 
-        pred = self.problem.hard_constraint(pred, input)
+            #add the number of flops for each trained network on subdomain
+            flops += model.flops(input_norm.shape[0])
+            #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
         
-        return pred, fbpinn_output, window_output
+        pred = self.problem.hard_constraint(input, pred)
+
+        return pred, fbpinn_output, window_output, flops
 
 
 class FBPINNTrainer:
@@ -167,7 +174,8 @@ class FBPINNTrainer:
         print("Training FBPINN")
         
         history = list()
-        
+        flops_history = list() 
+
         for i in range(nepochs):
             
             for input, in trainset:
@@ -175,20 +183,26 @@ class FBPINNTrainer:
                 def closure():
                     self.optimizer.zero_grad()
                     input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                    pred, _, __ = self.fbpinn(input)
+                    pred, _, __, flops = self.fbpinn(input)
                     loss = self.problem.compute_loss(pred, input)
                     loss.backward(retain_graph=True)
+
+                    flops_history.append(flops)
+
                     history.append(loss.item())
 
-                    print(f"Loss : {loss.item()}")
+                    print(f"Epoch {i} // Total Loss : {loss.item()}")
                     return loss
                 
             self.optimizer.step(closure=closure)
 
             input = next(iter(trainset))[0]
-            pred, fbpinn_output, window_output = self.fbpinn(input)
+            pred, fbpinn_output, window_output, flops = self.fbpinn(input)
+
+        flops_history = np.cumsum(flops_history)
+        flops_history = flops_history.tolist()
         
-        return pred, fbpinn_output, window_output, history
+        return pred, fbpinn_output, window_output, history, flops_history 
     
     def test(self):
 
@@ -198,7 +212,7 @@ class FBPINNTrainer:
         points = points * (domain[1] - domain[0]) + domain[0]
 
         self.fbpinn.eval()
-        pred, _, __ = self.fbpinn(points)
+        pred, _, __, ___ = self.fbpinn(points)
         true = self.problem.exact_solution(points)
 
         # check that no unwanted broadcasting occured
@@ -236,7 +250,7 @@ class Pinn(Module):
 
 
     def forward(self, input):
-
+        
         # normalize data to given subdomain
         # normalize such that input lies in [-1,1]
         input_norm = (input - self.mean) / self.std 
@@ -248,7 +262,8 @@ class Pinn(Module):
         
         output = self.problem.hard_constraint(output, input)
 
-        return output
+        flops = self.model.flops(input_norm.shape[0])
+        return output,flops
 
 class PINNTrainer:
 
@@ -265,7 +280,8 @@ class PINNTrainer:
         print("Training PINN")
         
         history = list()
-        
+        flops_history = list() 
+
         for i in range(nepochs):
             
             for input, in trainset:
@@ -273,9 +289,12 @@ class PINNTrainer:
                 def closure():
                     self.optimizer.zero_grad()
                     input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                    pred = self.pinn(input)
+                    pred, flops = self.pinn(input)
                     loss = self.problem.compute_loss(pred, input)
                     loss.backward(retain_graph=True)
+
+                    flops_history.append(flops)
+
                     history.append(loss.item())
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
@@ -283,13 +302,13 @@ class PINNTrainer:
                 
                 self.optimizer.step(closure=closure)
                 
-            
-
-
             input = next(iter(trainset))[0]
-            pred = self.pinn(input)
+            pred, flops = self.pinn(input)
 
-        return pred, history
+        flops_history = np.cumsum(flops_history)
+        flops_history = flops_history.tolist()
+
+        return pred, history, flops_history
 
     def test(self):
 
@@ -299,7 +318,7 @@ class PINNTrainer:
         points = points * (domain[1] - domain[0]) + domain[0]
 
         self.pinn.eval()
-        pred = self.pinn(points)
+        pred, flops = self.pinn(points)
         true = self.problem.exact_solution(points)
 
         # check that no unwanted broadcasting occured
@@ -307,4 +326,4 @@ class PINNTrainer:
 
         relative_L2 = torch.sqrt(torch.sum((pred - true) ** 2) / torch.sum(true ** 2))
 
-        return relative_L2.item()
+        return relative_L2.item(), flops
