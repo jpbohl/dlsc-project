@@ -120,7 +120,12 @@ class FBPinn(Module):
             # normalize data to given subdomain
             # normalize such that input lies in [-1,1]
             input_norm = (input - self.means[i]) / self.std[i] 
-            
+
+            # check whether we normalised to (-1, 1)
+            in_subdomain = (self.subdomains[i][0] <= input) & (input <= self.subdomains[i][1])
+
+            assert((input_norm[in_subdomain] <= 1).all().item())
+            assert((-1 <= input_norm[in_subdomain]).all().item())
 
             # model i prediction
             output = model(input_norm.reshape(-1,1))
@@ -136,7 +141,8 @@ class FBPinn(Module):
             # sum neural networks in overlapping regions
             pred += ind_pred
 
-            #add it to output tensor in row i
+            # add it to output tensor in row i
+            # used for different plots after training
             ind_pred = self.problem.hard_constraint(input, ind_pred)
             window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
@@ -177,6 +183,6 @@ class Pinn(Module):
 
         output = output * self.u_sd + self.u_mean
 
-        output = self.problem.hard_constraint(input, output)
+        output = self.problem.hard_constraint(input_norm, output)
 
         return output

@@ -161,3 +161,8 @@ cython_debug/
 baseline/test.ipynb
 
 results/
+baseline/test/__init__.py
+baseline/test/fbpinn_test.py
+baseline/test/test.py
+baseline/test/test_fbpinn.py
+baseline/.vscode/settings.json

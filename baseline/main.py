@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 
 from fbpinn import FBPinn, Pinn
-from problems import Cos1d, Cos1dMulticscale
+from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -13,20 +13,21 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 200
-nwindows = 5
+nsamples = 3000
+nwindows = 30
 nepochs = 5000
-lr = 0.001
+nepochs_pinn = 5000
+lr = 1e-3
 hidden = 2
-pinn_hidden = 2
+pinn_hidden = 4
 neurons = 16
-pinn_neurons = 16
+pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 1
+w = 15
 
+#problem = Sin1dSecondOrder(domain, nsamples, w)
 problem = Cos1d(domain, nsamples, w)
-#problem = Cos1dMulticscale(domain, nsamples, w = w)
 
 # get training set
 trainset = problem.assemble_dataset()
@@ -37,34 +38,29 @@ fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
 # define pinn model
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 
-# Isi: hier ggf nwindows auf 1 setzen und FBPinns benutzen?
-# Caro: gute Idee! dann ist aber auch noch die window function applied - ich schau wie ben das hat
-
 # define optimizers
 optimizer_pinn = optim.Adam(pinn.parameters(), 
                         lr=lr)
 
 optimizer_fbpinn = optim.Adam(fbpinn.parameters(),
-                            lr=lr,
-                            weight_decay=1e-3)
-
+                            lr=lr)
 
 # training loop FBPiNN
 print("Training FBPINN")
 history_fbpinn = list()
 for i in range(nepochs):
     for input, in trainset:
-
         optimizer_fbpinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred_fbpinn, fbpinn_output, window_output = fbpinn.forward(input)
-        
-        #loss = problem.debug_loss(pred_fbpinn, input)
-
+        pred_fbpinn, fbpinn_output, window_output = fbpinn(input)
         loss = problem.compute_loss(pred_fbpinn, input)
-        loss.backward(retain_graph=True)
+        #loss = problem.debug_loss(pred_fbpinn, input)
+        loss.backward()
         optimizer_fbpinn.step()
         history_fbpinn.append(loss.item())
+        
+        # checks whether model output has changed
+        assert(not torch.equal(pred_fbpinn, fbpinn(input)[0]))
 
     if i % 10 == 0:
         print(f"Epoch {i} // Total Loss : {loss.item()}")
@@ -73,16 +69,19 @@ for i in range(nepochs):
 # training loop PiNN
 print("Training PINN")
 history_pinn = list()
-for i in range(nepochs):
+for i in range(nepochs_pinn):
     for input, in trainset:
         optimizer_pinn.zero_grad()
         input.requires_grad_(True) # allow gradients wrt to input for pde loss
-        pred = pinn.forward(input)
+        pred = pinn(input)
         loss = problem.compute_loss(pred, input)
         #loss = problem.debug_loss(pred, input)
         loss.backward()
         optimizer_pinn.step()
         history_pinn.append(loss.item())
+
+        # checks whether model output has changed
+        assert(not torch.equal(pred, pinn(input)))
     
     if i % 10 == 0:
         print(f"Epoch {i} // Total Loss : {loss.item()}")
@@ -93,10 +92,10 @@ for i in range(nepochs):
 fig = plt.figure(figsize=(15,8))
 grid = plt.GridSpec(3, 4, hspace=0.4, wspace=0.2)
 
-fbpinn_subdom= fig.add_subplot(grid[0,:2])
+fbpinn_subdom = fig.add_subplot(grid[0,:2])
 fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
-window_fct= fig.add_subplot(grid[1,0:2])
-training_error_l2=fig.add_subplot(grid[-1,-1])
+window_fct = fig.add_subplot(grid[1,0:2])
+training_error_l2 = fig.add_subplot(grid[-1,-1])
 pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 #plot of FBPiNN with subdomain definition - every subdomain different color
