@@ -13,22 +13,22 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 300
-nwindows = 5 #30
-nepochs = 10 #1000
-nepochs_pinn = 10 #1000
-lr = 1e-4 #3
+nsamples = 3000
+nwindows = 30
+nepochs = 1000
+nepochs_pinn = 5000
+lr = 1e-3
 hidden = 2
 pinn_hidden = 4
 neurons = 16
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 1 #15
+w = 15
 #w = (1, 2, 4, 8, 16)
 
 #problem = Cos1dMulticscale_Extention(domain, nsamples, w)
-# problem = Sin1dSecondOrder(domain, nsamples, w)
+#problem = Sin1dSecondOrder(domain, nsamples, w)
 problem = Cos1d(domain, nsamples, w)
 
 # get training set
@@ -43,19 +43,17 @@ fbpinn_trainer = FBPINNTrainer(fbpinn, lr, problem)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(pinn, lr, problem)
 
-pred_fbpinn, fbpinn_output, window_output, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
+pred_fbpinn, fbpinn_output, window_output, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
 print("Relative L2 Loss: ", relativeL2)
 
-pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs, trainset)
+pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = pinn_trainer.test()
-print("Relative L2 Loss: ", relativeL2)
-
-
+print("Relative L2 Loss: ", relativeL2[0])
 
 
 # do some plots (Figure 7) to visualize ben-moseley style 
