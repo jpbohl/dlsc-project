@@ -14,9 +14,9 @@ from datetime import datetime
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 300
-nwindows = 5 #30
-nepochs = 10 #1000
-nepochs_pinn = 10 #1000
+nwindows = 30
+nepochs = 1000
+nepochs_pinn = 1000
 lr = 1e-4 #3
 hidden = 2
 pinn_hidden = 4
@@ -24,7 +24,7 @@ neurons = 16
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 1 #15
+w = 15
 #w = (1, 2, 4, 8, 16)
 
 #problem = Cos1dMulticscale_Extention(domain, nsamples, w)
@@ -93,8 +93,8 @@ fbpinn_vs_exact.set_title('FBPiNN: global solution vs exact')
 #plot of different PiNN config vs exact solution
 
 pred, flops = pinn.forward(input)
-pinn_vs_exact.plot(input.detach().numpy(),pred.detach().numpy())
-pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy())
+pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
+pinn_vs_exact.plot(input.detach().numpy(),pred.detach().numpy(), label="Prediction")
 pinn_vs_exact.set_ylabel('u')
 pinn_vs_exact.set_xlabel('x')
 pinn_vs_exact.legend()

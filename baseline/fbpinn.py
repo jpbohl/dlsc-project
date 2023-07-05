@@ -167,6 +167,15 @@ class FBPINNTrainer:
         self.fbpinn = fbpinn
         self.optimizer = Adam(fbpinn.parameters(),
                             lr=lr)
+        '''
+        self.optimizer = LBFGS(fbpinn.parameters(),
+                                    lr=float(0.5),
+                                    max_iter=50000,
+                                    max_eval=50000,
+                                    history_size=150,
+                                    line_search_fn="strong_wolfe",
+                                    tolerance_change=1.0 * np.finfo(float).eps)
+        '''
         self.problem = problem
         
 
@@ -272,6 +281,15 @@ class PINNTrainer:
         self.pinn = pinn
         self.optimizer = Adam(pinn.parameters(),
                             lr=lr)
+        '''             
+        self.optimizer = LBFGS(pinn.parameters(),
+                              lr=float(0.5),
+                              max_iter=50,
+                              max_eval=50000,
+                              history_size=150,
+                              line_search_fn="strong_wolfe",
+                              tolerance_change=0.5 * np.finfo(float).eps)
+        '''
         self.problem = problem
         
 
@@ -326,4 +344,4 @@ class PINNTrainer:
 
         relative_L2 = torch.sqrt(torch.sum((pred - true) ** 2) / torch.sum(true ** 2))
 
-        return relative_L2.item(), flops
+        return relative_L2.item()
