@@ -147,7 +147,7 @@ class FBPinn(Module):
 
             # add it to output tensor in row i
             # used for different plots after training
-            ind_pred = self.problem.hard_constraint(input, ind_pred)
+            ind_pred = self.problem.hard_constraint(ind_pred, input)
             window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
 
@@ -155,7 +155,7 @@ class FBPinn(Module):
             flops += model.flops(input_norm.shape[0])
             #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
         
-        pred = self.problem.hard_constraint(input, pred)
+        pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
 
