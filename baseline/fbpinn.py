@@ -89,19 +89,35 @@ class FBPinn(Module):
         Gets the midpoint of left and right overlapping domain 
         for window function later.
         """
+        # 1D case
+        if isinstance(self.nwindows, int):
+            #initialize midpoints, edges of domain are not overlapping
+            midpoints = torch.zeros(self.nwindows+1)
+            midpoints[0] = self.subdomains[0][0]
+            #midpoints[self.nwindows] = self.subdomains[self.nwindows][1]
+            midpoints[self.nwindows] = self.subdomains[self.nwindows-1][1]
 
-        #initialize midpoints, edges of domain are not overlapping
-        midpoints = torch.zeros(self.nwindows+1)
-        midpoints[0] = self.subdomains[0][0]
-        #midpoints[self.nwindows] = self.subdomains[self.nwindows][1]
-        midpoints[self.nwindows] = self.subdomains[self.nwindows-1][1]
-
-        #compute midpoints of overlapping interior domains
-        # we have self.nwindows -1 overlapping regions 
-        #begin with 0 end with end of domain
-        for i in range(1,self.nwindows):
-            midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
-
+            #compute midpoints of overlapping interior domains
+            # we have self.nwindows -1 overlapping regions 
+            #begin with 0 end with end of domain
+            for i in range(1,self.nwindows):
+                midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
+        # 2D case
+        else: 
+            #initialize midpoints, edges of domain are not overlapping
+            midpoints_row = torch.zeros(self.nwindows[0]+1)
+            midpoints_col = torch.zeros(self.nwindows[1]+1)
+            midpoints_row[0] = self.subdomains[0][0]
+            midpoints_row[self.nwindows[0]] = self.subdomains[self.nwindows[0]-1][1]
+            midpoints_col[0] = self.subdomains[0][0]
+            midpoints_col[self.nwindows[1]] = self.subdomains[self.nwindows[1]-1][1]
+            
+            for i in range(1,self.nwindows[0]):
+                midpoints_row[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2
+            for j in range(1,self.nwindows[1]):
+                midpoints_col[j] = (self.subdomains[j-1][1] + self.subdomains[j][0]) / 2
+            midpoints = torch.cartesian_prod(midpoints_row, midpoints_col)
+            
         return midpoints
 
     def compute_window(self, input, iteration):
@@ -109,12 +125,14 @@ class FBPinn(Module):
         Computes window function given input points and domain and parameter sigma
         """
         # 1D case
-    
-        x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
-        x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
-       
-        
-        window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
+        if isinstance(self.nwindows, int):
+            x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
+            x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
+            window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
+        # 2D case
+        #else:
+            # TODO: implement 2D case      
+
         
         #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
         #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
