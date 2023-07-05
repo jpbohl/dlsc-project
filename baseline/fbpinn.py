@@ -148,35 +148,42 @@ class FBPinn(Module):
 
             model = self.models[i] # get model i
             
-            # normalize data to given subdomain
-            # normalize such that input lies in [-1,1]
-            input_norm = (input - self.means[i]) / self.std[i] 
+            # get index for points which are in model i subdomain
+            in_subdomain = (self.subdomains[i][0] <= input) & (input <= self.subdomains[i][1])
+            
+            # normalize data to given subdomain and extract relevant points
+            input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
 
             # check whether we normalised to (-1, 1)
-            in_subdomain = (self.subdomains[i][0] <= input) & (input <= self.subdomains[i][1])
-
-            assert((input_norm[in_subdomain] <= 1).all().item())
-            assert((-1 <= input_norm[in_subdomain]).all().item())
+            assert((input_norm <= 1).all().item())
+            assert((-1 <= input_norm).all().item())
 
             # model i prediction
-            output = model(input_norm.reshape(-1,1))
+            output = model(input_norm).reshape(-1)
 
             output = output * self.u_sd + self.u_mean
 
             # compute window function for subdomain i
-            window = self.compute_window(input, i)
+            window = self.compute_window(input[in_subdomain], i)
 
             ind_pred = window * output
 
             # add prediction to total output
             # sum neural networks in overlapping regions
-            pred += ind_pred
+            pred[in_subdomain] += ind_pred
 
-            # add it to output tensor in row i
+            # create full sized tensors with individual network predictions
+            # and the window functions for points in subdomain 
+            # and zeros outside of current subdomain
             # used for different plots after training
-            ind_pred = self.problem.hard_constraint(ind_pred, input)
-            window_output[counter,] = window.reshape(1,-1)[0]
-            fbpinn_output[counter,] = ind_pred.reshape(1,-1)[0]
+            single_nn_out = torch.zeros_like(pred)
+            single_window = torch.zeros_like(pred)
+            single_nn_out[in_subdomain] = ind_pred
+            single_window[in_subdomain] = window
+
+            ind_pred = self.problem.hard_constraint(single_nn_out, input)
+            window_output[counter,] = single_window.reshape(1,-1)[0]
+            fbpinn_output[counter,] = single_nn_out.reshape(1,-1)[0]
 
             #add the number of flops for each trained network on subdomain
             flops += model.flops(input_norm.shape[0])
@@ -185,7 +192,6 @@ class FBPinn(Module):
         pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
-
 
 class FBPINNTrainer:
 
@@ -197,13 +203,11 @@ class FBPINNTrainer:
                             lr=lr)
         self.problem = problem
         
-
     def train(self, nepochs, trainset, active_models=None): 
         print("Training FBPINN")
         
         history = list()
         flops_history = list() 
-
         for i in range(nepochs):
             
             for input, in trainset:
@@ -233,7 +237,6 @@ class FBPINNTrainer:
         
         return pred, fbpinn_output, window_output, history, flops_history 
 
-
     def train_outward(self, nepochs, trainset):
 
         # get initial active models:
@@ -245,7 +248,6 @@ class FBPINNTrainer:
         flops_history = []
         for i in range(r_active):
             
-
             l_parameters = list(self.fbpinn.models[l_active].parameters())
             r_parameters = list(self.fbpinn.models[r_active].parameters())
             self.optimizer = Adam(l_parameters + r_parameters, lr=self.lr)
@@ -274,8 +276,6 @@ class FBPINNTrainer:
         out = self.fbpinn(input)
 
         return out[0], out[1], out[3], history, flops_history
-
-
     
     def test(self):
 
@@ -372,7 +372,7 @@ class PINNTrainer:
 
                     flops_history.append(flops)
 
-                    history.append(self.test())
+                    history.append(self.test()[0])
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
                     return loss
