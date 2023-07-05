@@ -49,7 +49,7 @@ class FBPinn(Module):
             raise ValueError("nwindows must be an integer or a tuple of integers.")
             
         #problem for 1d: width = (self.domain[0][1]-self.domain[0][0]) / self.nwindows
-        if isinstance(self.windows, int):
+        if isinstance(self.nwindows, int):
             subdomains = torch.zeros(self.nwindows, 2)
             width = (self.domain[1]-self.domain[0]) / self.nwindows
             for i in range(self.nwindows):
