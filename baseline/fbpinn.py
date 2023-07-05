@@ -44,17 +44,28 @@ class FBPinn(Module):
         # error when overlap is 0 or smaller
         if self.overlap <= 0:
             raise ValueError("Overlap must be greater than 0.")
-        
-        subdomains = torch.zeros(self.nwindows, 2)
-        
+        #check if nwindows is not int or tuple otherwise raise error
+        if not isinstance(self.nwindows, int) and not isinstance(self.nwindows, tuple):
+            raise ValueError("nwindows must be an integer or a tuple of integers.")
+            
         #problem for 1d: width = (self.domain[0][1]-self.domain[0][0]) / self.nwindows
-        width = (self.domain[1]-self.domain[0]) / self.nwindows
-        for i in range(self.nwindows):
-            #subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
-            #subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[0][1]
-            subdomains[i][0] = self.domain[0] + (i-self.overlap/2) * width if i != 0 else self.domain[0]
-            subdomains[i][1] = self.domain[0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[1]
-        
+        if isinstance(self.windows, int):
+            subdomains = torch.zeros(self.nwindows, 2)
+            width = (self.domain[1]-self.domain[0]) / self.nwindows
+            for i in range(self.nwindows):
+                #subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
+                #subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[0][1]
+                subdomains[i][0] = self.domain[0] + (i-self.overlap/2) * width if i != 0 else self.domain[0]
+                subdomains[i][1] = self.domain[0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[1]
+        else:
+            subdomains = torch.zeros(sum(self.nwindows), 2)
+            width = ((self.domain[0][1]-self.domain[0][0]) / self.nwindows[0] , (self.domain[1][1]-self.domain[1][0] )/ self.nwindows[1]) 
+            for i in range(self.windows[0]):
+                subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
+                subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows[0]-1) else self.domain[0][1]
+            for j in range(self.windows[1]):
+                subdomains[j+self.windows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width if j != 0 else self.domain[1][0]
+                subdomains[j+self.windows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width if j != (self.nwindows[1]-1) else self.domain[1][1]
         return subdomains
 
         #raise NotImplementedError
@@ -65,8 +76,12 @@ class FBPinn(Module):
         Gets the midpoint of each subdomain for subdomain
         normalization. 
         """
-
-        return (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
+        if isinstance(self.nwindows, int):
+            midpoints = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
+        else:
+            one_dim = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
+            midpoints = torch.cartesian_prod( torch.split(one_dim, self.nwindows[0]))
+        return midpoints
 
 
     def get_midpoints_overlap(self):
@@ -94,11 +109,10 @@ class FBPinn(Module):
         Computes window function given input points and domain and parameter sigma
         """
         # 1D case
-        #tol = 1e-5
+    
         x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
         x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
-        # x_left = (input - self.subdomain[subdomain][0])/self.sigma
-        # x_right = (input - self.subdomain[subdomain][1])/self.sigma
+       
         
         window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
         
