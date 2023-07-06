@@ -449,7 +449,7 @@ class PINNTrainer:
 
                     flops_history.append(flops)
 
-                    history.append(self.test()[0])
+                    history.append(self.test())
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
                     return loss
