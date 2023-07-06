@@ -59,12 +59,12 @@ class FBPinn(Module):
         else:
             subdomains = torch.zeros(sum(self.nwindows), 2)
             width = ((self.domain[0][1]-self.domain[0][0]) / self.nwindows[0] , (self.domain[1][1]-self.domain[1][0] )/ self.nwindows[1]) 
-            for i in range(self.windows[0]):
+            for i in range(self.nwindows[0]):
                 subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
                 subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows[0]-1) else self.domain[0][1]
-            for j in range(self.windows[1]):
-                subdomains[j+self.windows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width if j != 0 else self.domain[1][0]
-                subdomains[j+self.windows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width if j != (self.nwindows[1]-1) else self.domain[1][1]
+            for j in range(self.nwindows[1]):
+                subdomains[j+self.nwindows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width if j != 0 else self.domain[1][0]
+                subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width if j != (self.nwindows[1]-1) else self.domain[1][1]
         return subdomains
 
         #raise NotImplementedError
@@ -129,10 +129,13 @@ class FBPinn(Module):
             x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
             window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
         # 2D case
-        #else:
-            # TODO: implement 2D case      
-
-        
+        else:
+            x_left = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration][0])) / self.sigma
+            x_right = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration+1][0])) / self.sigma
+            y_left = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration][1])) / self.sigma
+            y_right = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration+1][1])) / self.sigma
+            window = torch.sigmoid(x_left) * torch.sigmoid(-x_right) * torch.sigmoid(y_left) * torch.sigmoid(-y_right)
+                  
         #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
         #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
         
