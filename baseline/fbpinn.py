@@ -23,7 +23,12 @@ class FBPinn(Module):
 
         self.u_mean = problem.u_mean
         self.u_sd = problem.u_sd
-        self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
+        # case 1D
+        if isinstance(self.nwindows, int):
+            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
+        # case 2D    
+        else:
+            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows[0]*self.nwindows[1])])
 
 
     ###  Task Allebasi
@@ -79,8 +84,10 @@ class FBPinn(Module):
         if isinstance(self.nwindows, int):
             midpoints = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
         else:
-            one_dim = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
-            midpoints = torch.cartesian_prod( torch.split(one_dim, self.nwindows[0]))
+            subdomains_row, subdomains_col = torch.split(self.subdomains, self.nwindows)
+            midpoints_row = (subdomains_row[:, 1] + subdomains_row[:, 0]) / 2
+            midpoints_col = (subdomains_col[:, 1] + subdomains_col[:, 0]) / 2
+            midpoints = torch.cartesian_prod( midpoints_row, midpoints_col)
         return midpoints
 
 
@@ -115,7 +122,7 @@ class FBPinn(Module):
             for i in range(1,self.nwindows[0]):
                 midpoints_row[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2
             for j in range(1,self.nwindows[1]):
-                midpoints_col[j] = (self.subdomains[j-1][1] + self.subdomains[j][0]) / 2
+                midpoints_col[j] = (self.subdomains[self.nwindows[0]+j-1][1] + self.subdomains[self.nwindows[0]+j][0]) / 2
             midpoints = torch.cartesian_prod(midpoints_row, midpoints_col)
             
         return midpoints
