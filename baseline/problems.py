@@ -416,3 +416,103 @@ class Cos1dMulticscale_Extention(object):
     def exact_solution(self, input):
 
         return torch.sin(self.w1 * input) + torch.sin(self.w2 * input) + torch.sin(self.w3 * input) + torch.sin(self.w4 * input) + torch.sin(self.w5 * input)
+    
+    
+class Cos2d(object):
+#Extension (a) problem:
+#define problem together with exact solution to
+#du/dx1 + du/dx2 = cos(ω*x) +  cos(ω*x)
+#u(0,x2)=1/ω sin(ω*x2)
+#domain = [-2*pi,2*pi]x[-2*pi,2*pi]
+#solution u(x1,x2)=1/ω sin(ω*x1)+1/ω sin(ω*x2)
+
+    def __init__(self, domain, nsamples, w):
+
+        self.domain = domain
+        self.nsamples = nsamples
+
+        # in this case w = w
+        self.w1 = w
+
+        # mean and variance to normalize hard constraint
+        self.mean = (self.domain[1] + self.domain[0]) / 2
+        self.std = (self.domain[1] - self.domain[0]) / 2
+
+        # mean and variance to unnormalize NNs
+        self.u_sd = (1, 1)
+        self.u_mean = (0, 0)
+
+        self.training_dataset = self.assemble_dataset()
+
+    def assemble_dataset(self):
+        """
+        Sample points in given domain and create dataloader
+        for training.
+        """
+
+        sobol = torch.quasirandom.SobolEngine(dimension=2, seed=0)
+        points = sobol.draw(self.nsamples)
+
+        #sample points in [a,b]x[c,d]
+        points = torch.cartesian_prod(points * (self.domain[0][1] - self.domain[0][0]) + self.domain[0][0], points * (self.domain[1][1] - self.domain[1][0]) + self.domain[1][0])
+         
+        
+        #in 2d we sort the points in ascending order 
+        points, indices = torch.sort(points, dim=-2)
+        
+        dataset = TensorDataset(points)
+        dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
+
+        return dataloader
+
+    def hard_constraint(self, pred, input):
+        """
+        define hard constraint which automatically enforces
+        boundary conditions
+        """
+
+        input_norm = (input - self.mean) / self.std
+
+        return 1/self.w * torch.sin(self.w *input_norm[:, 1])*torch.tanh(self.w * input_norm[:, 0]) * pred 
+
+    def compute_pde_residual(self, pred, input):
+        """
+        Compute PDE loss using autograd
+        """
+        
+        dx1 = torch.autograd.grad(pred.sum(), input, create_graph=True)[0][:,0]
+        dx2 = torch.autograd.grad(pred.sum(), input, create_graph=True)[0][:,1]
+        f = torch.cos(self.w1 * input[:, 0]) +torch.cos(self.w * input[:, 1])
+        
+        assert (dx1+dx2 - f).numel() == self.nsamples
+
+        return dx1+dx2 - f
+    
+    def compute_loss(self, pred, input, verbose=False):
+        """
+        Compute loss by applying the norm to the pde residual 
+        """
+        
+        #unsupervised
+        r_int  = self.compute_pde_residual(pred, input)
+        loss_int = torch.mean(abs(r_int) ** 2)
+
+        #get log loss 
+        loss = torch.log10(loss_int)
+
+        if verbose: print("Total loss: ", round(loss.item(), 4))
+
+        return loss
+    
+    def debug_loss(self, pred, input):
+
+        residual = pred -  self.exact_solution(input)
+
+        assert residual.numel() == self.nsamples
+
+        return torch.mean(residual ** 2)
+
+
+    def exact_solution(self, input):
+
+        return 1/self.w *torch.sin(self.w * input[:, 0]) + 1/self.w* torch.sin(self.w * input[:, 1]) 
