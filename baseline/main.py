@@ -13,10 +13,10 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 3000
+nsamples = 300
 nwindows = 30
-nepochs = 5000
-nepochs_pinn = 5000
+nepochs = 5
+nepochs_pinn = 5
 lr = 1e-3
 hidden = 2
 pinn_hidden = 4
@@ -43,7 +43,7 @@ fbpinn_trainer = FBPINNTrainer(fbpinn, lr, problem)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(pinn, lr, problem)
 
-pred_fbpinn, fbpinn_output, window_output, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
+pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
@@ -70,7 +70,7 @@ pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 #plot of FBPiNN with subdomain definition - every subdomain different color
 
-pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.forward(input)
+pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
 for i in range(nwindows):
     fbpinn_subdom.plot(input.detach().numpy(),fbpinn_output[i,].detach().numpy())
 

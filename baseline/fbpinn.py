@@ -138,18 +138,15 @@ class FBPinn(Module):
             index = self.nwindows
             active_models = np.arange(self.nwindows).tolist()
 
-        #output for every subdomain: dimension  nwindows*input
-        fbpinn_output = torch.zeros(nactive,input.size(0))
-        window_output = torch.zeros(nactive,input.size(0))
         pred = torch.zeros_like(input)
         flops = 0
         
-        for counter, i in enumerate(active_models):
+        for i in active_models:
 
             model = self.models[i] # get model i
             
             # get index for points which are in model i subdomain
-            in_subdomain = (self.subdomains[i][0] <= input) & (input <= self.subdomains[i][1])
+            in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
             
             # normalize data to given subdomain and extract relevant points
             input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
@@ -166,24 +163,54 @@ class FBPinn(Module):
             # compute window function for subdomain i
             window = self.compute_window(input[in_subdomain], i)
 
+            # add prediction to total output
+            pred[in_subdomain] += window * output
+
+            #add the number of flops for each trained network on subdomain
+            flops += model.flops(input_norm.shape[0])
+            #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
+        
+        pred = self.problem.hard_constraint(pred, input)
+
+        return pred, flops
+    
+    
+    def plotting_data(self, input):
+        """
+        Computes forward pass of FBPinn model 
+        """
+
+        #output for every subdomain: dimension  nwindows*input
+        fbpinn_output = torch.zeros(self.nwindows, input.size(0))
+        window_output = torch.zeros(self.nwindows, input.size(0))
+        pred = torch.zeros_like(input)
+        flops = 0
+        
+        for i in range(self.nwindows):
+
+            model = self.models[i] # get model i
+            
+            # normalize data to given subdomain and extract relevant points
+            input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 1)
+
+            # model i prediction
+            output = model(input_norm)
+
+            output = output * self.u_sd + self.u_mean
+
+            # compute window function for subdomain i
+            window = self.compute_window(input, i)
+
+            # prediction of individual network times window function
             ind_pred = window * output
 
             # add prediction to total output
             # sum neural networks in overlapping regions
-            pred[in_subdomain] += ind_pred
+            pred += ind_pred
 
-            # create full sized tensors with individual network predictions
-            # and the window functions for points in subdomain 
-            # and zeros outside of current subdomain
-            # used for different plots after training
-            single_nn_out = torch.zeros_like(pred)
-            single_window = torch.zeros_like(pred)
-            single_nn_out[in_subdomain] = ind_pred
-            single_window[in_subdomain] = window
-
-            ind_pred = self.problem.hard_constraint(single_nn_out, input)
-            window_output[counter,] = single_window.reshape(1,-1)[0]
-            fbpinn_output[counter,] = single_nn_out.reshape(1,-1)[0]
+            ind_pred = self.problem.hard_constraint(ind_pred, input)
+            window_output[i,] = window.reshape(1,-1)[0]
+            fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
 
             #add the number of flops for each trained network on subdomain
             flops += model.flops(input_norm.shape[0])
@@ -215,7 +242,7 @@ class FBPINNTrainer:
                 def closure():
                     self.optimizer.zero_grad()
                     input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                    pred, _, __, flops = self.fbpinn(input, active_models=active_models)
+                    pred, flops = self.fbpinn(input, active_models=active_models)
                     loss = self.problem.compute_loss(pred, input)
                     loss.backward(retain_graph=True)
 
@@ -230,12 +257,12 @@ class FBPINNTrainer:
             self.optimizer.step(closure=closure)
 
             input = next(iter(trainset))[0]
-            pred, fbpinn_output, window_output, flops = self.fbpinn(input)
+            pred, _ = self.fbpinn(input)
 
         flops_history = np.cumsum(flops_history)
         flops_history = flops_history.tolist()
         
-        return pred, fbpinn_output, window_output, history, flops_history 
+        return pred, history, flops_history 
 
     def train_outward(self, nepochs, trainset):
 
@@ -275,7 +302,7 @@ class FBPINNTrainer:
         input = next(iter(trainset))[0]
         out = self.fbpinn(input)
 
-        return out[0], out[1], out[3], history, flops_history
+        return out[0], history, flops_history
     
     def test(self):
 
@@ -285,7 +312,7 @@ class FBPINNTrainer:
         points = points * (domain[1] - domain[0]) + domain[0]
 
         self.fbpinn.eval()
-        pred, _, __, ___ = self.fbpinn(points)
+        pred, flops = self.fbpinn(points)
         true = self.problem.exact_solution(points)
 
         # check that no unwanted broadcasting occured
