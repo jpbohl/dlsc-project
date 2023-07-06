@@ -60,11 +60,12 @@ class FBPinn(Module):
             subdomains = torch.zeros(sum(self.nwindows), 2)
             width = ((self.domain[0][1]-self.domain[0][0]) / self.nwindows[0] , (self.domain[1][1]-self.domain[1][0] )/ self.nwindows[1]) 
             for i in range(self.nwindows[0]):
-                subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
-                subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows[0]-1) else self.domain[0][1]
+                subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width[0] if i != 0 else self.domain[0][0]
+                subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width[0] if i != (self.nwindows[0]-1) else self.domain[0][1]
             for j in range(self.nwindows[1]):
-                subdomains[j+self.nwindows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width if j != 0 else self.domain[1][0]
-                subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width if j != (self.nwindows[1]-1) else self.domain[1][1]
+                subdomains[j+self.nwindows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width[1] if j != 0 else self.domain[1][0]
+                subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width[1] if j != (self.nwindows[1]-1) else self.domain[1][1]
+        print(subdomains, subdomains.shape)
         return subdomains
 
         #raise NotImplementedError

@@ -454,8 +454,9 @@ class Cos2d(object):
         points = sobol.draw(self.nsamples)
 
         #sample points in [a,b]x[c,d]
-        points = torch.cartesian_prod(points * (self.domain[0][1] - self.domain[0][0]) + self.domain[0][0], points * (self.domain[1][1] - self.domain[1][0]) + self.domain[1][0])
-         
+        #points = torch.cartesian_prod(points * (self.domain[0][1] - self.domain[0][0]) + self.domain[0][0], points * (self.domain[1][1] - self.domain[1][0]) + self.domain[1][0])
+        points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
+        #print(points, points.shape)
         
         #in 2d we sort the points in ascending order 
         points, indices = torch.sort(points, dim=-2)
