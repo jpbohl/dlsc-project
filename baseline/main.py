@@ -28,7 +28,7 @@ w = 15
 #w = (1, 2, 4, 8, 16)
 
 #problem = Cos1dMulticscale_Extention(domain, nsamples, w)
-# problem = Sin1dSecondOrder(domain, nsamples, w)
+#problem = Sin1dSecondOrder(domain, nsamples, w)
 problem = Cos1d(domain, nsamples, w)
 
 # get training set
@@ -43,19 +43,17 @@ fbpinn_trainer = FBPINNTrainer(fbpinn, lr, problem)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(pinn, lr, problem)
 
-pred_fbpinn, fbpinn_output, window_output, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
+pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
 print("Relative L2 Loss: ", relativeL2)
 
-pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs, trainset)
+pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = pinn_trainer.test()
-print("Relative L2 Loss: ", relativeL2)
-
-
+print("Relative L2 Loss: ", relativeL2[0])
 
 
 # do some plots (Figure 7) to visualize ben-moseley style 
@@ -72,7 +70,7 @@ pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
 #plot of FBPiNN with subdomain definition - every subdomain different color
 
-pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.forward(input)
+pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
 for i in range(nwindows):
     fbpinn_subdom.plot(input.detach().numpy(),fbpinn_output[i,].detach().numpy())
 
@@ -90,7 +88,7 @@ fbpinn_vs_exact.set_xlabel('x')
 fbpinn_vs_exact.legend()
 fbpinn_vs_exact.set_title('FBPiNN: global solution vs exact')
 
-#plot of different PiNN config vs exact solution
+# plot of different PiNN config vs exact solution
 
 pred, flops = pinn.forward(input)
 pinn_vs_exact.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
@@ -100,7 +98,7 @@ pinn_vs_exact.set_xlabel('x')
 pinn_vs_exact.legend()
 pinn_vs_exact.set_title('PiNN: global solution vs exact')
 
-#Test loss (L1 norm) vs Trainings step
+# Test loss (L1 norm) vs Trainings step
 
 training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), history_fbpinn, label="Train Loss FBPiNN L2 norm ")
 training_error_l2.plot(np.arange(1, len(history_pinn) + 1), history_pinn, label="Train Loss PiNN L2 norm ")
@@ -108,8 +106,6 @@ training_error_flop.set_xlabel('Training Step')
 training_error_flop.set_ylabel('log L2 error')
 training_error_l2.legend()
 training_error_l2.set_title('Comparing training errors')
-
-
 
 #Test loss (L1 norm) vs FLOPS (floating point operations)
 

@@ -293,7 +293,7 @@ class Sin1dSecondOrder(object):
         """
         
         #unsupervised
-        r_int  = self.pde_loss(pred, input)
+        r_int  = self.compute_pde_residual(pred, input)
         loss_int = torch.mean(abs(r_int) ** 2)
 
         #get log loss 
