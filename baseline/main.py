@@ -15,8 +15,8 @@ from datetime import datetime
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 300
 nwindows = 30
-nepochs = 1000
-nepochs_pinn = 1000
+nepochs = 5
+nepochs_pinn = 5
 lr = 1e-4 #3
 hidden = 2
 pinn_hidden = 4
@@ -53,7 +53,7 @@ pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trains
 
 # Realtive L2 Test Loss
 relativeL2 = pinn_trainer.test()
-print("Relative L2 Loss: ", relativeL2[0])
+print("Relative L2 Loss: ", relativeL2)
 
 
 # do some plots (Figure 7) to visualize ben-moseley style 
