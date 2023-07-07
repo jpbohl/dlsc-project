@@ -70,7 +70,7 @@ class FBPinn(Module):
             for j in range(self.nwindows[1]):
                 subdomains[j+self.nwindows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width[1] if j != 0 else self.domain[1][0]
                 subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width[1] if j != (self.nwindows[1]-1) else self.domain[1][1]
-        print(subdomains, subdomains.shape)
+        #print(subdomains, subdomains.shape)
         return subdomains
 
         #raise NotImplementedError
@@ -157,30 +157,50 @@ class FBPinn(Module):
         """
 
         active_inputs = torch.zeros_like(input, dtype=bool)
+        if isinstance(self.nwindows, int):
+            for i in active_models:
+                subdomain = self.subdomains[i, :]
 
-        for i in active_models:
-            subdomain = self.subdomains[i, :]
+                # turn inputs in subdomain i to active
+                active_inputs |= (input <= subdomain[1]) & (subdomain[0] <= input)
 
-            # turn inputs in subdomain i to active
-            active_inputs |= (input <= subdomain[1]) & (subdomain[0] <= input)
+            return input[active_inputs].reshape(-1, 1)
+        else:
+            for i in active_models:
+                row, col = divmod(i, self.nwindows[0])
+                col = col + self.nwindows[0]
+                
+                subdomain = torch.cat(( self.subdomains[row, :], self.subdomains[col, :]), dim = 0)
 
-        return input[active_inputs].reshape(-1, 1)
+                # turn inputs in subdomain i to active
+                active_inputs |= (input[:,0] <= subdomain[0][1]) & (subdomain[0][0] <= input[:,0]) & (input[:,1] <= subdomain[1][1]) & (subdomain[1][0] <= input[:,1])
+
+            return input[active_inputs].reshape(-1, 2)
 
 
     def forward(self, input, active_models=None):
         """
         Computes forward pass of FBPinn model 
         """
-
-        if active_models is not None:
-            nactive = len(active_models)
-            index = list(active_models)
-            input = self.get_active_inputs(input, active_models)
+        if isinstance(self.nwindows, int):
+            if active_models is not None:
+                nactive = len(active_models)
+                index = list(active_models)
+                input = self.get_active_inputs(input, active_models)
+            else:
+                nactive = self.nwindows
+                index = self.nwindows
+                active_models = np.arange(self.nwindows).tolist()
         else:
-            nactive = self.nwindows
-            index = self.nwindows
-            active_models = np.arange(self.nwindows).tolist()
-
+            if active_models is not None:
+                nactive = len(active_models)
+                index = list(active_models)
+                input = self.get_active_inputs(input, active_models)
+            else:
+                nactive = self.nwindows[0] * self.nwindows[1]
+                index = (self.nwindows[0] * self.nwindows[1])
+                active_models = np.arange(self.nwindows[0] * self.nwindows[1]).tolist()
+                
         pred = torch.zeros_like(input)
         flops = 0
         
@@ -188,15 +208,36 @@ class FBPinn(Module):
 
             model = self.models[i] # get model i
             
-            # get index for points which are in model i subdomain
-            in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
-            
-            # normalize data to given subdomain and extract relevant points
-            input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
+            #1D case
+            if isinstance(self.nwindows, int):
+                # get index for points which are in model i subdomain
+                in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
+                #print(in_subdomain)
+                       
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
+            else:
+            #2D case
+                row, col = divmod(i, self.nwindows[0])
+                col = col + self.nwindows[0]
+                            
+                # get index for points which are in model i subdomain
+                in_subdomain = (self.subdomains[row][0] < input[:,0]) & (input[:,0] < self.subdomains[row][1]) & (self.subdomains[col][0] < input[:,1]) & (input[:,1] < self.subdomains[col][1])
+                #print(in_subdomain)
+                #print(input)
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 2)
 
             # check whether we normalised to (-1, 1)
-            assert((input_norm <= 1).all().item())
-            assert((-1 <= input_norm).all().item())
+            if isinstance(self.nwindows, int):
+                assert((input_norm <= 1).all().item())
+                assert((-1 <= input_norm).all().item())
+            else:
+                print(input_norm, input[in_subdomain])
+                assert((input_norm[:,0] <= 1).all().item())
+                assert((-1 <= input_norm[:,0]).all().item())
+                assert((input_norm[:,1] <= 1).all().item())
+                assert((-1 <= input_norm[:,1]).all().item())
 
             # model i prediction
             output = model(input_norm).reshape(-1)

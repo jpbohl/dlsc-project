@@ -421,7 +421,7 @@ class Cos1dMulticscale_Extention(object):
 class Cos2d(object):
 #Extension (a) problem:
 #define problem together with exact solution to
-#du/dx1 + du/dx2 = cos(ω*x) +  cos(ω*x)
+#du/dx1 + du/dx2 = cos(ω*x) + cos(ω*x)
 #u(0,x2)=1/ω sin(ω*x2)
 #domain = [-2*pi,2*pi]x[-2*pi,2*pi]
 #solution u(x1,x2)=1/ω sin(ω*x1)+1/ω sin(ω*x2)
@@ -454,9 +454,7 @@ class Cos2d(object):
         points = sobol.draw(self.nsamples)
 
         #sample points in [a,b]x[c,d]
-        #points = torch.cartesian_prod(points * (self.domain[0][1] - self.domain[0][0]) + self.domain[0][0], points * (self.domain[1][1] - self.domain[1][0]) + self.domain[1][0])
-        points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
-        #print(points, points.shape)
+        points = points * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0] 
         
         #in 2d we sort the points in ascending order 
         points, indices = torch.sort(points, dim=-2)
