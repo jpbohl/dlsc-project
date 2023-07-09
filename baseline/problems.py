@@ -439,8 +439,8 @@ class Cos2d(object):
         self.std = (self.domain[1] - self.domain[0]) / 2
 
         # mean and variance to unnormalize NNs
-        self.u_sd = (1, 1)
-        self.u_mean = (0, 0)
+        self.u_sd = 1
+        self.u_mean = 0
 
         self.training_dataset = self.assemble_dataset()
 

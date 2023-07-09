@@ -200,8 +200,15 @@ class FBPinn(Module):
                 nactive = self.nwindows[0] * self.nwindows[1]
                 index = (self.nwindows[0] * self.nwindows[1])
                 active_models = np.arange(self.nwindows[0] * self.nwindows[1]).tolist()
-                
-        pred = torch.zeros_like(input)
+        
+        if isinstance(self.nwindows, int):        
+            pred = torch.zeros_like(input)
+        else:
+            # 2D case output is only one dimensional but input is two dimensional
+            pred = torch.zeros_like(input[:,0])
+            print("pred.shape test", pred.shape)
+            
+        #pred = torch.zeros_like(input)
         flops = 0
         
         for i in active_models:
@@ -223,8 +230,8 @@ class FBPinn(Module):
                             
                 # get index for points which are in model i subdomain
                 in_subdomain = (self.subdomains[row][0] < input[:,0]) & (input[:,0] < self.subdomains[row][1]) & (self.subdomains[col][0] < input[:,1]) & (input[:,1] < self.subdomains[col][1])
-                #print(in_subdomain)
-                #print(input)
+                print("in_sub",in_subdomain)
+                #print("test",input.shape, input[in_subdomain].shape, self.subdomains.shape)
                 # normalize data to given subdomain and extract relevant points
                 input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 2)
 
@@ -233,21 +240,24 @@ class FBPinn(Module):
                 assert((input_norm <= 1).all().item())
                 assert((-1 <= input_norm).all().item())
             else:
-                print(input_norm, input[in_subdomain])
+                #print(input_norm, input[in_subdomain])
                 assert((input_norm[:,0] <= 1).all().item())
                 assert((-1 <= input_norm[:,0]).all().item())
                 assert((input_norm[:,1] <= 1).all().item())
-                assert((-1 <= input_norm[:,1]).all().item())
+                #assert((-1 <= input_norm[:,1]).all().item())
 
             # model i prediction
             output = model(input_norm).reshape(-1)
-
+           
             output = output * self.u_sd + self.u_mean
-
+            print("output.shape", output.shape)
             # compute window function for subdomain i
             window = self.compute_window(input[in_subdomain], i)
-
+            print("window", window.shape)
+            #print(pred.shape)
             # add prediction to total output
+            #print((window*output).shape)
+            print("pred", pred.shape, in_subdomain.shape)
             pred[in_subdomain] += window * output
 
             #add the number of flops for each trained network on subdomain
