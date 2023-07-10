@@ -28,7 +28,7 @@ pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
 w=15
-#w = (1,15)
+
 #w = (1, 2, 4, 8, 16)
 nsamples_plot = 1000
 
@@ -44,15 +44,10 @@ else:
     if domain.ndim != 2:
         raise ValueError('nwindows must be an integer if domain.ndim == 1')
 
-#give manual domain for sin high and low freq partition
-
-#for x*sin(1/x) idea to have 0s as intervals
-# sin(1/x)==0 if 1/x= k*pi for k in natural numbers 
-#manual_part= [6/(i*torch.pi) for i in reversed(range(2,20))] #length 18 
 
 #problem = Cos1d(domain, nsamples, w)
 #problem = Sin1dSecondOrder(domain, nsamples, w)
-#problem = Sin_osc(domain, nsamples, 1)
+
 
 
 # get training set
@@ -88,21 +83,11 @@ if isinstance(nwindows, int):
     pinn_trainer = PINNTrainer(pinn, lr, problem)
     pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trainset)
 
-    pinn216= Pinn(problem, domain, 2, 16)
-    pinn_trainer_216 = PINNTrainer(pinn216, lr, problem)
-    pred_216, history_pinn_216, history_pinn_flops_216 = pinn_trainer_216.train(nepochs_pinn, trainset)
-
-    pinn464= Pinn(problem, domain, 4, 64)
-    pinn_trainer_464 = PINNTrainer(pinn464, lr, problem)
-    pred_464, history_pinn_464, history_pinn_flops_464 = pinn_trainer_464.train(nepochs_pinn, trainset)
-
-    pinn5128= Pinn(problem, domain, 5, 128)
-    pinn_trainer_5128 = PINNTrainer(pinn5128, lr, problem)
-    pred_5128, history_pinn_5128, history_pinn_flops_5128 = pinn_trainer_5128.train(nepochs_pinn, trainset)
 else:
     pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
     pinn_trainer = PINNTrainer(pinn, lr, problem)
     pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trainset)
+
 
 
 # Realtive L2 Test Loss
@@ -113,19 +98,17 @@ print("Relative L2 Loss: ", relativeL2)
 # do some plots (Figure 7) to visualize ben-moseley style 
 if isinstance(nwindows, int):
     fig = plt.figure(figsize=(15,8))
-    grid = plt.GridSpec(4, 4, hspace=0.4, wspace=0.2)
+    grid = plt.GridSpec(3, 4, hspace=0.4, wspace=0.2)
 
-    fbpinn_subdom = fig.add_subplot(grid[0,:2])
-    fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
-    window_fct = fig.add_subplot(grid[1,0:2])
+fbpinn_subdom = fig.add_subplot(grid[0,:2])
+fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
+window_fct = fig.add_subplot(grid[1,0:2])
 
-    pinn216_plot= fig.add_subplot(grid[1,2:])
-    pinn464_plot= fig.add_subplot(grid[2,:2])
-    pinn5128_plot= fig.add_subplot(grid[2,2:])
+pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
-    training_error_l2 = fig.add_subplot(grid[-1,-1])
-    training_error_flop= fig.add_subplot(grid[-1,-2])
-    pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
+training_error_l2 = fig.add_subplot(grid[-1,-1])
+training_error_flop= fig.add_subplot(grid[-1,-2])
+
 
     #plot of FBPiNN with subdomain definition - every subdomain different color
 
@@ -157,29 +140,6 @@ if isinstance(nwindows, int):
     pinn_vs_exact.legend()
     pinn_vs_exact.set_title('PiNN: global solution vs exact')
 
-    pred216, flops216 = pinn216.forward(input)
-    pinn216_plot.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
-    pinn216_plot.plot(input.detach().numpy(),pred216.detach().numpy(), label="Prediction")
-    pinn216_plot.set_ylabel('u')
-    pinn216_plot.set_xlabel('x')
-    pinn216_plot.legend()
-    pinn216_plot.set_title('PiNN: 2 hidden layers 16 neurons')
-
-    pred464, flops464 = pinn464.forward(input)
-    pinn464_plot.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
-    pinn464_plot.plot(input.detach().numpy(),pred464.detach().numpy(), label="Prediction")
-    pinn464_plot.set_ylabel('u')
-    pinn464_plot.set_xlabel('x')
-    pinn464_plot.legend()
-    pinn464_plot.set_title('PiNN: 4 hidden layers 64 neurons')
-
-    pred5128, flops5128 = pinn5128.forward(input)
-    pinn5128_plot.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
-    pinn5128_plot.plot(input.detach().numpy(),pred5128.detach().numpy(), label="Prediction")
-    pinn5128_plot.set_ylabel('u')
-    pinn5128_plot.set_xlabel('x')
-    pinn5128_plot.legend()
-    pinn5128_plot.set_title('PiNN: 5 hidden layers 128 neurons')
 
     # Test loss (L1 norm) vs Trainings step
 

@@ -46,10 +46,8 @@ class Cos1d(object):
 
         input_norm = (input - self.mean) / self.std
 
-        #enforce sin(15*pi/15)=0 for domain [0,0.75]
-
         return torch.tanh(self.w * input_norm) * pred 
-        #return torch.tanh(self.w * (input-torch.pi/(15))) * pred 
+
 
     def compute_pde_residual(self, pred, input): 
         """
@@ -68,7 +66,7 @@ class Cos1d(object):
         Compute loss by applying the norm to the pde residual 
         """
         
-        residual  = self.pde_loss(pred, input)
+        residual  = self.compute_pde_residual(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
@@ -576,7 +574,7 @@ class Sin_osc(object):
 
     def hard_constraint(self, pred, input):
 
-        return torch.tanh(self.w * (input-6/torch.pi)) * pred 
+        return torch.tanh(self.w * (input-6/(torch.pi*10))) * pred 
 
     def compute_pde_residual(self, pred, input): 
         """
