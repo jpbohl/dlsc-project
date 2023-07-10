@@ -13,27 +13,28 @@ from datetime import datetime
 
 # define parameters
 #domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
-domain = torch.tensor(((-2,2), (-2, 2)))
-#domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-nsamples = 10
-#nwindows = 6
-nwindows = (6,2)
-nepochs = 2
-nepochs_pinn = 40
-lr = 1e-4 #3
+#domain = torch.tensor(((-2,2), (-2, 2)))
+domain = torch.tensor((-2*torch.pi, 2*torch.pi))
+nsamples = 3000
+nwindows = 30
+#nwindows = (6,2)
+nepochs = 5000
+nepochs_pinn = 5000
+lr = 1e-3 #3
 hidden = 2
-pinn_hidden = 4
+pinn_hidden = 5
 neurons = 16
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 1
+w = 15
 #w = (1, 2, 4, 8, 16)
 
 #problem = Cos1dMulticscale_Extention(domain, nsamples, w)
-#problem = Sin1dSecondOrder(domain, nsamples, w)
+#problem = Cos1dMulticscale(domain, nsamples, w)
+problem = Sin1dSecondOrder(domain, nsamples, w)
 #problem = Cos1d(domain, nsamples, w)
-problem = Cos2d(domain, nsamples, w)
+#problem = Cos2d(domain, nsamples, w)
 
 # get training set
 trainset = problem.assemble_dataset()
@@ -152,3 +153,9 @@ plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
 plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
+
+
+target_dir =current_working_directory + '/models/'
+# save models in folder models
+torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
+torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")

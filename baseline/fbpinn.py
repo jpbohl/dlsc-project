@@ -4,6 +4,8 @@ from torch.optim import Adam, LBFGS
 
 import numpy as np
 
+from multiprocessing import Pool
+
 from nn import NeuralNet as NN
 
 
@@ -182,23 +184,12 @@ class FBPinn(Module):
         """
         Computes forward pass of FBPinn model 
         """
-        if isinstance(self.nwindows, int):
-            if active_models is not None:
-                nactive = len(active_models)
-                index = list(active_models)
-                input = self.get_active_inputs(input, active_models)
-            else:
-                nactive = self.nwindows
-                index = self.nwindows
+        
+        # differentiate between 1d and 2d case
+        if active_models is None:
+            if isinstance(self.nwindows, int):
                 active_models = np.arange(self.nwindows).tolist()
-        else:
-            if active_models is not None:
-                nactive = len(active_models)
-                index = list(active_models)
-                input = self.get_active_inputs(input, active_models)
             else:
-                nactive = self.nwindows[0] * self.nwindows[1]
-                index = (self.nwindows[0] * self.nwindows[1])
                 active_models = np.arange(self.nwindows[0] * self.nwindows[1]).tolist()
                 
         pred = torch.zeros_like(input)
@@ -232,6 +223,7 @@ class FBPinn(Module):
             if isinstance(self.nwindows, int):
                 assert((input_norm <= 1).all().item())
                 assert((-1 <= input_norm).all().item())
+                pass
             else:
                 print(input_norm, input[in_subdomain])
                 assert((input_norm[:,0] <= 1).all().item())
@@ -330,13 +322,18 @@ class FBPINNTrainer:
         flops_history = list() 
         for i in range(nepochs):
             
-            for input, in trainset:
+            for input_, in trainset:
 
+                if active_models is not None:
+                    input_ = self.fbpinn.get_active_inputs(input_, active_models) 
+               
                 def closure():
                     self.optimizer.zero_grad()
-                    input.requires_grad_(True) # allow gradients wrt to input for pde loss
-                    pred, flops = self.fbpinn(input, active_models=active_models)
-                    loss = self.problem.compute_loss(pred, input)
+                   
+
+                    input_.requires_grad_(True) # allow gradients wrt to input for pde loss
+                    pred, flops = self.fbpinn(input_, active_models=active_models)
+                    loss = self.problem.compute_loss(pred, input_)
                     loss.backward(retain_graph=True)
 
                     flops_history.append(flops)
@@ -368,9 +365,9 @@ class FBPINNTrainer:
         flops_history = []
         for i in range(r_active):
             
-            l_parameters = list(self.fbpinn.models[l_active].parameters())
-            r_parameters = list(self.fbpinn.models[r_active].parameters())
-            self.optimizer = Adam(l_parameters + r_parameters, lr=self.lr)
+            #l_parameters = list(self.fbpinn.models[l_active].parameters())
+            #r_parameters = list(self.fbpinn.models[r_active].parameters())
+            #self.optimizer = Adam(l_parameters + r_parameters, lr=self.lr)
             
             active_models = (l_active, r_active)
             out = self.train(nepochs, trainset, active_models)

@@ -56,7 +56,7 @@ class Cos1d(object):
         dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
         f = torch.cos(self.w * input) 
         
-        assert (dx - f).numel() == self.nsamples
+        assert (dx - f).numel() == input.numel()
 
         return dx - f
     
@@ -65,7 +65,7 @@ class Cos1d(object):
         Compute loss by applying the norm to the pde residual 
         """
         
-        residual  = self.compute_pde_residual(pred, input)
+        residual  = self.pde_loss(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
@@ -180,7 +180,6 @@ class Cos1dMulticscale(object):
 
         return torch.mean(residual ** 2)
 
-
     def exact_solution(self, input):
 
         return torch.sin(self.w1 * input) + torch.sin(self.w2 * input)
@@ -270,7 +269,7 @@ class Sin1dSecondOrder(object):
 
         residual = ddc + l + dl + ddl - f
 
-        assert residual.numel() == self.nsamples
+        assert residual.numel() == input.numel()
 
         return residual
 
@@ -293,11 +292,11 @@ class Sin1dSecondOrder(object):
         """
         
         #unsupervised
-        r_int  = self.compute_pde_residual(pred, input)
-        loss_int = torch.mean(abs(r_int) ** 2)
+        residual  = self.pde_loss(pred, input)
+        loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
-        loss = torch.log10(loss_int)
+        loss = torch.log10(loss)
 
         if verbose: print("Total loss: ", round(loss.item(), 4))
 
