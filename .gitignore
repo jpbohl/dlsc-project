@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 baseline/test.ipynb
 
+models/
 results/
 baseline/test/__init__.py
 baseline/test/fbpinn_test.py
