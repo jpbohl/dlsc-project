@@ -19,7 +19,15 @@ class FBPinn(Module):
         self.sigma = sigma # parameter (set) for window function
         self.subdomains = self.partition_domain()
         self.means = self.get_midpoints()
-        self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
+        if isinstance(self.nwindows, int):
+            self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
+        else:
+             
+             self.subdomains_row, self.subdomains_col = torch.split(self.subdomains, self.nwindows)
+             self.stdrow = (self.subdomains_row[:, 1] - self.subdomains_row[:, 0]) / 2
+             self.stdcol = (self.subdomains_col[:, 1] - self.subdomains_col[:, 0]) / 2
+             self.std = torch.cartesian_prod(self.stdrow, self.stdcol)
+             
 
         self.u_mean = problem.u_mean
         self.u_sd = problem.u_sd
@@ -206,7 +214,7 @@ class FBPinn(Module):
         else:
             # 2D case output is only one dimensional but input is two dimensional
             pred = torch.zeros_like(input[:,0])
-            print("pred.shape test", pred.shape)
+            #print("pred.shape test", pred.shape)
             
         #pred = torch.zeros_like(input)
         flops = 0
@@ -225,12 +233,12 @@ class FBPinn(Module):
                 input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
             else:
             #2D case
-                row, col = divmod(i, self.nwindows[0])
+                row, col = divmod(i, self.nwindows[1])
                 col = col + self.nwindows[0]
-                            
+                #print(row, col)            
                 # get index for points which are in model i subdomain
                 in_subdomain = (self.subdomains[row][0] < input[:,0]) & (input[:,0] < self.subdomains[row][1]) & (self.subdomains[col][0] < input[:,1]) & (input[:,1] < self.subdomains[col][1])
-                print("in_sub",in_subdomain)
+                #print("in_sub",in_subdomain)
                 #print("test",input.shape, input[in_subdomain].shape, self.subdomains.shape)
                 # normalize data to given subdomain and extract relevant points
                 input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 2)
@@ -240,30 +248,30 @@ class FBPinn(Module):
                 assert((input_norm <= 1).all().item())
                 assert((-1 <= input_norm).all().item())
             else:
-                #print(input_norm, input[in_subdomain])
+                #print("input_norm, input[in_subdomain]",input_norm, input[in_subdomain])
                 assert((input_norm[:,0] <= 1).all().item())
                 assert((-1 <= input_norm[:,0]).all().item())
                 assert((input_norm[:,1] <= 1).all().item())
-                #assert((-1 <= input_norm[:,1]).all().item())
+                assert((-1 <= input_norm[:,1]).all().item())
 
             # model i prediction
             output = model(input_norm).reshape(-1)
            
             output = output * self.u_sd + self.u_mean
-            print("output.shape", output.shape)
+            #print("output.shape", output.shape)
             # compute window function for subdomain i
             window = self.compute_window(input[in_subdomain], i)
-            print("window", window.shape)
+            #print("window", window.shape)
             #print(pred.shape)
             # add prediction to total output
             #print((window*output).shape)
-            print("pred", pred.shape, in_subdomain.shape)
+            #print("pred", pred.shape, in_subdomain.shape)
             pred[in_subdomain] += window * output
-
+            #print("pred_ fbpinn", pred.shape)
             #add the number of flops for each trained network on subdomain
             flops += model.flops(input_norm.shape[0])
             #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
-        
+            
         pred = self.problem.hard_constraint(pred, input)
 
         return pred, flops
@@ -410,9 +418,15 @@ class FBPINNTrainer:
     def test(self):
 
         domain = self.problem.domain
-        ntest = 1000
-        points = torch.rand(ntest).reshape(-1, 1)
-        points = points * (domain[1] - domain[0]) + domain[0]
+        ntest = 1000   
+        
+        if domain.ndim == 1:
+            points = torch.rand(ntest).reshape(-1, 1)
+            points = points * (domain[1] - domain[0]) + domain[0]
+        else:
+        #2D case
+            points = torch.rand(ntest, 2)
+            points = points * (domain[:,1] - domain[:,0]) + domain[:,0]
 
         self.fbpinn.eval()
         pred, flops = self.fbpinn(points)
@@ -442,8 +456,12 @@ class Pinn(Module):
         self.problem = problem
 
         #parameter for normalize
-        self.mean = (domain[1] + domain[0])/2
-        self.std = (domain[1] - domain[0])/2
+        if domain.ndim == 1:
+            self.mean = (domain[1] + domain[0])/2
+            self.std = (domain[1] - domain[0])/2
+        else:
+            self.mean = (domain[:,1] + domain[:,0])/2
+            self.std = (domain[:,1] - domain[:,0])/2
         
         #parameters for unnormalize
         self.u_mean = problem.u_mean
@@ -457,15 +475,20 @@ class Pinn(Module):
         # normalize data to given subdomain
         # normalize such that input lies in [-1,1]
         input_norm = (input - self.mean) / self.std 
-        
+        #print("input_norm Pinn forward", input_norm.shape)
         # model prediction
         pred = self.model(input_norm) 
+        #print("pred Pinn forward", pred.shape)
 
         # unnormalize prediction
         pred = pred * self.u_sd + self.u_mean
+        if self.domain.ndim == 2:
+            pred = pred.squeeze()
         
+        #print("pred Pinn forward2", pred.shape)
         # apply hard constraint
         output = self.problem.hard_constraint(pred, input)
+        #print("output Pinn forward", output.shape)
 
         # compute flops of forward pass
         flops = self.model.flops(input_norm.shape[0])
@@ -506,6 +529,7 @@ class PINNTrainer:
                     self.optimizer.zero_grad()
                     input.requires_grad_(True) # allow gradients wrt to input for pde loss
                     pred, flops = self.pinn(input)
+                    #print("pred pinn", pred.shape)
                     loss = self.problem.compute_loss(pred, input)
                     loss.backward(retain_graph=True)
 
@@ -530,12 +554,19 @@ class PINNTrainer:
 
         domain = self.problem.domain
         ntest = 1000
-        points = torch.rand(ntest).reshape(-1, 1)
-        points = points * (domain[1] - domain[0]) + domain[0]
-
+        if domain.ndim == 1:
+            points = torch.rand(ntest).reshape(-1, 1)
+            points = points * (domain[1] - domain[0]) + domain[0]
+        else:
+            #2D case
+            points = torch.rand(ntest, 2)
+            points = points * (domain[:,1] - domain[:,0]) + domain[:,0] 
+        
         self.pinn.eval()
         pred, flops = self.pinn(points)
+        #print("pred_ test", pred.shape)
         true = self.problem.exact_solution(points)
+        #print("true test", true.shape)
 
         # check that no unwanted broadcasting occured
         assert (pred - true).numel() == ntest
