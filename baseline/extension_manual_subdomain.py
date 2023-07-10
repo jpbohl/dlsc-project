@@ -84,7 +84,7 @@ fbpinn_vs_exact = fig.add_subplot(grid[0,8:])
 
 fbpinn_fixedsub_subdom = fig.add_subplot(grid[1,4:8])
 window_fixedsub_fct = fig.add_subplot(grid[1,0:4])
-fbpinn_fixedsub = fig.add_subplot(grid[1,8:])
+fbpinn_fixedsub_plot = fig.add_subplot(grid[1,8:])
 
 pinn_vs_exact = fig.add_subplot(grid[-1,:6])
 
@@ -124,12 +124,12 @@ fbpinn_fixedsub_subdom.set_title('FBPiNN: individual network solution - fixed su
 
 #plot of FBPiNN's solution vs exact solution with equally spaced subdomains
 
-fbpinn_fixedsub.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
-fbpinn_fixedsub.plot(input.detach().numpy(),pred_fbpinn_fixedsub.detach().numpy(), label="Prediction")
-fbpinn_fixedsub.set_ylabel('u')
-fbpinn_fixedsub.set_xlabel('x')
-fbpinn_fixedsub.legend()
-fbpinn_fixedsub.set_title('FBPiNN: global solution vs exact - equal distance')
+fbpinn_fixedsub_plot.plot(input.detach().numpy(), problem.exact_solution(input).detach().numpy(), label="Exact Solution")
+fbpinn_fixedsub_plot.plot(input.detach().numpy(),pred_fbpinn_fixedsub.detach().numpy(), label="Prediction")
+fbpinn_fixedsub_plot.set_ylabel('u')
+fbpinn_fixedsub_plot.set_xlabel('x')
+fbpinn_fixedsub_plot.legend()
+fbpinn_fixedsub_plot.set_title('FBPiNN: global solution vs exact - equal distance')
 
 # plot of PiNN config vs exact solution
 
@@ -186,10 +186,8 @@ window_fct.set_title('FBPiNN window function and domains')
 
 
 
-if len(fbpinn.manual_part)==0:
-    partition = fbpinn_fixedsub.partition_domain()
-else:
-    partition = fbpinn_fixedsub.manual_partition()     
+partition = fbpinn_fixedsub.partition_domain()
+
 
 for i in range(nwindows):
   window_fixedsub_fct.hlines( -0.5 if i%2 else -0.4, partition[i][0], partition[i][1],  linewidth=5)
@@ -223,4 +221,5 @@ plt.show()
 target_dir =current_working_directory + '/models/'
 # save models in folder models
 torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
+torch.save(fbpinn_fixedsub.state_dict(), target_dir + dt_string + "_fbpinn_fixedsub.pt")
 torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")
