@@ -14,7 +14,7 @@ from datetime import datetime
 domain = torch.tensor((6/(20*torch.pi), 6/torch.pi)) # for xsin(1/x)
 nsamples = 3000
 nwindows = 19
-nepochs = 100
+nepochs = 10
 nepochs_pinn = 10
 lr = 1e-4
 hidden = 2
@@ -102,6 +102,27 @@ fbpinn_subdom.set_ylabel('u')
 fbpinn_subdom.set_xlabel('x')
 fbpinn_subdom.set_title('FBPiNN: individual network solution')
 
+#add-on: cool plot from fig 6 - with subdomain definition and overlap stuff
+
+if len(fbpinn.manual_part)==0:
+    partition = fbpinn.partition_domain()
+else:
+    partition = fbpinn.manual_partition()     
+
+for i in range(nwindows):
+  window_fct.hlines( -0.5 if i%2 else -0.4, partition[i][0], partition[i][1],  linewidth=5)
+   
+window_fct.hlines(-1, partition[0][0], partition[nwindows-1][1],  linewidth=2, color = 'tab:grey')
+for j in range(nwindows-1):
+    window_fct.hlines(-1,partition[j][1], partition[j+1][0],  linewidth=5, color = 'magenta')
+
+for i in range(nwindows):
+    window_fct.plot(input.detach().numpy(),window_output[i,].detach().numpy())
+
+
+window_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
+window_fct.set_xlabel('x')
+window_fct.set_title('FBPiNN window function and domains')
 
 #plot of FBPiNN's solution vs exact solution
 
@@ -121,6 +142,26 @@ for i in range(nwindows):
 fbpinn_fixedsub_subdom.set_ylabel('u')
 fbpinn_fixedsub_subdom.set_xlabel('x')
 fbpinn_fixedsub_subdom.set_title('FBPiNN: individual network solution - fixed subdomains')
+
+#plot of window function
+
+partition = fbpinn_fixedsub.partition_domain()
+
+
+for i in range(nwindows):
+  window_fixedsub_fct.hlines( -0.5 if i%2 else -0.4, partition[i][0], partition[i][1],  linewidth=5)
+   
+window_fixedsub_fct.hlines(-1, partition[0][0], partition[nwindows-1][1],  linewidth=2, color = 'tab:grey')
+for j in range(nwindows-1):
+    window_fixedsub_fct.hlines(-1,partition[j][1], partition[j+1][0],  linewidth=5, color = 'magenta')
+
+for i in range(nwindows):
+    window_fixedsub_fct.plot(input.detach().numpy(),window_output[i,].detach().numpy())
+
+
+window_fixedsub_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
+window_fixedsub_fct.set_xlabel('x')
+window_fixedsub_fct.set_title('FBPiNN window function and domains')
 
 #plot of FBPiNN's solution vs exact solution with equally spaced subdomains
 
@@ -162,47 +203,7 @@ training_error_flop.set_ylabel('Relative L2 error')
 training_error_flop.legend()
 training_error_flop.set_title('Comparing Test errors vs FLOPs')
 
-#add-on: cool plot from fig 6 - with subdomain definition and overlap stuff
 
-if len(fbpinn.manual_part)==0:
-    partition = fbpinn.partition_domain()
-else:
-    partition = fbpinn.manual_partition()     
-
-for i in range(nwindows):
-  window_fct.hlines( -0.5 if i%2 else -0.4, partition[i][0], partition[i][1],  linewidth=5)
-   
-window_fct.hlines(-1, partition[0][0], partition[nwindows-1][1],  linewidth=2, color = 'tab:grey')
-for j in range(nwindows-1):
-    window_fct.hlines(-1,partition[j][1], partition[j+1][0],  linewidth=5, color = 'magenta')
-
-for i in range(nwindows):
-    window_fct.plot(input.detach().numpy(),window_output[i,].detach().numpy())
-
-
-window_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
-window_fct.set_xlabel('x')
-window_fct.set_title('FBPiNN window function and domains')
-
-
-
-partition = fbpinn_fixedsub.partition_domain()
-
-
-for i in range(nwindows):
-  window_fixedsub_fct.hlines( -0.5 if i%2 else -0.4, partition[i][0], partition[i][1],  linewidth=5)
-   
-window_fixedsub_fct.hlines(-1, partition[0][0], partition[nwindows-1][1],  linewidth=2, color = 'tab:grey')
-for j in range(nwindows-1):
-    window_fixedsub_fct.hlines(-1,partition[j][1], partition[j+1][0],  linewidth=5, color = 'magenta')
-
-for i in range(nwindows):
-    window_fixedsub_fct.plot(input.detach().numpy(),window_output[i,].detach().numpy())
-
-
-window_fixedsub_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
-window_fixedsub_fct.set_xlabel('x')
-window_fixedsub_fct.set_title('FBPiNN window function and domains')
 
 #save plots in folder results
 
