@@ -311,42 +311,68 @@ class FBPinn(Module):
         """
 
         #output for every subdomain: dimension  nwindows*input
-        fbpinn_output = torch.zeros(self.nwindows, input.size(0))
-        window_output = torch.zeros(self.nwindows, input.size(0))
-        pred = torch.zeros_like(input)
-        flops = 0
-        
-        for i in range(self.nwindows):
-
-            model = self.models[i] # get model i
+        if isinstance(self.nwindows, int):
+            fbpinn_output = torch.zeros(self.nwindows, input.size(0))
+            window_output = torch.zeros(self.nwindows, input.size(0))
+            pred = torch.zeros_like(input)
+            flops = 0
             
-            # normalize data to given subdomain and extract relevant points
-            input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 1)
+            
+            for i in range(self.nwindows):
 
-            # model i prediction
-            output = model(input_norm)
+                model = self.models[i] # get model i
+                
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 1)
 
-            output = output * self.u_sd + self.u_mean
+                # model i prediction
+                output = model(input_norm)
 
-            # compute window function for subdomain i
-            window = self.compute_window(input, i)
+                output = output * self.u_sd + self.u_mean
 
-            # prediction of individual network times window function
-            ind_pred = window * output
+                # compute window function for subdomain i
+                window = self.compute_window(input, i)
 
-            # add prediction to total output
-            # sum neural networks in overlapping regions
-            pred += ind_pred
+                # prediction of individual network times window function
+                ind_pred = window * output
 
-            ind_pred = self.problem.hard_constraint(ind_pred, input)
-            window_output[i,] = window.reshape(1,-1)[0]
-            fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+                # add prediction to total output
+                # sum neural networks in overlapping regions
+                pred += ind_pred
 
-            #add the number of flops for each trained network on subdomain
-            flops += model.flops(input_norm.shape[0])
-            #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
+                ind_pred = self.problem.hard_constraint(ind_pred, input)
+                window_output[i,] = window.reshape(1,-1)[0]
+                fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+
+                #add the number of flops for each trained network on subdomain
+                flops += model.flops(input_norm.shape[0])
+                #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
         
-        pred = self.problem.hard_constraint(pred, input)
+            pred = self.problem.hard_constraint(pred, input)
+            
+        else:
+            fbpinn_output = torch.zeros(self.nwindows[0] * self.nwindows[1], input.size(0))
+            window_output = torch.zeros(self.nwindows[0] * self.nwindows[1], input.size(0))
+            pred = torch.zeros_like(input[:,0])
+            flops = 0
+            
+            for i in range(self.nwindows[0] * self.nwindows[1]):
+
+                model = self.models[i]
+                
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 2)
+                output = model(input_norm)
+                output = output * self.u_sd + self.u_mean
+                window = self.compute_window(input, i)
+                #print("window", window.shape, output.squeeze().shape, (window*output.squeeze()).shape)
+                ind_pred = window * (output.squeeze())
+                pred += ind_pred
+                ind_pred = self.problem.hard_constraint(ind_pred, input)
+                window_output[i,] = window.reshape(1,-1)[0]
+                fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+                flops += model.flops(input_norm.shape[0])              
+            pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
 

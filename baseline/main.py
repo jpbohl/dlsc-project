@@ -13,9 +13,11 @@ from datetime import datetime
 
 # define parameters
 #domain = torch.tensor((6/(20*torch.pi), 6/torch.pi)) # for xsin(1/x)
-domain = torch.tensor((-2*torch.pi, 2*torch.pi))
+#domain = torch.tensor((-2*torch.pi, 2*torch.pi))
+domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
 nsamples = 3000
-nwindows = 30
+#nwindows = 30
+nwindows = (15,15)
 nepochs = 1000
 nepochs_pinn = 1000
 lr = 1e-3
@@ -28,10 +30,19 @@ sigma = 0.02
 w=15
 #w = (1,15)
 #w = (1, 2, 4, 8, 16)
+nsamples_plot = 1000
 
 #problem = Cos1dMulticscale_Extention(domain, nsamples, w)
 #problem = Sin1dSecondOrder(domain, nsamples, w)
-problem = Cos1d(domain, nsamples, w)
+#problem = Cos1d(domain, nsamples, w)
+problem = Cos2d(domain, nsamples, nsamples_plot, w)
+
+if isinstance(nwindows, int):
+    if domain.ndim != 1:
+        raise ValueError('nwindows must be a tuple if domain.ndim > 1')
+else:
+    if domain.ndim != 2:
+        raise ValueError('nwindows must be an integer if domain.ndim == 1')
 
 #give manual domain for sin high and low freq partition
 

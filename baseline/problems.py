@@ -428,10 +428,11 @@ class Cos2d(object):
 #domain = [-2*pi,2*pi]x[-2*pi,2*pi]
 #solution u(x1,x2)=1/ω sin(ω*x1)+1/ω sin(ω*x2)
 
-    def __init__(self, domain, nsamples, w):
+    def __init__(self, domain, nsamples, nsamples_2d, w):
 
         self.domain = domain
         self.nsamples = nsamples
+        self.nsamples_2d = nsamples_2d
 
         # in this case w = w
         self.w = w
@@ -452,19 +453,25 @@ class Cos2d(object):
         for training.
         """
 
-        sobol = torch.quasirandom.SobolEngine(dimension=2, seed=0)
+        sobol = torch.quasirandom.SobolEngine(dimension=2, seed=0, scramble=True)
+        # point = sobol.draw(self.nsamples).reshape(-1, )
+        # points =torch.cartesian_prod(point, point)
         points = sobol.draw(self.nsamples)
-
+        points_plot = sobol.draw(self.nsamples_2d)
+    
         #sample points in [a,b]x[c,d]
         points = points * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0] 
-        
-        #in 2d we sort the points in ascending order 
-        points, indices = torch.sort(points, dim=-2)
+        points_plot = points_plot * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0]
+        #print("points", points)
+    
         
         dataset = TensorDataset(points)
+        dataset_plot = TensorDataset(points_plot)
+        
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
+        dataloader_plot = DataLoader(dataset_plot, batch_size=self.nsamples_2d, shuffle=False)
 
-        return dataloader
+        return dataloader, dataloader_plot
 
     def hard_constraint(self, pred, input):
         """
