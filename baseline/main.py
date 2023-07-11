@@ -1,5 +1,4 @@
 import torch
-import torch.optim as optim
 
 from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
 from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder, Cos1dMulticscale_Extention, Cos2d	
@@ -10,6 +9,10 @@ import numpy as np
 
 import os 
 from datetime import datetime
+
+import wandb
+
+wandb.login()
 
 # define parameters
 #domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
@@ -22,17 +25,32 @@ nepochs = 5000
 nepochs_pinn = 5000
 lr = 1e-3 #3
 hidden = 2
-pinn_hidden = 5
-neurons = 16
+pinn_hidden = 4
+neurons = 32
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.02
-w = 15
-#w = (1, 2, 4, 8, 16)
+#w = 15
+w = [2 ** i for i in range(5)]
 
-#problem = Cos1dMulticscale_Extention(domain, nsamples, w)
+run = wandb.init(project="Multiscale Extension",
+                 config={
+                    "nsamples" : nsamples,
+                    "nwindows" : nwindows,
+                    "nepochs" : nepochs,
+                    "nepochs_pinn" : nepochs_pinn,
+                    "lr" : lr,
+                    "hidden" : hidden,
+                    "pinn_hidden" : pinn_hidden,
+                    "neurons" : neurons,
+                    "pinn_neurons" : pinn_neurons,
+                    "overlap" : overlap,
+                    "sigma" : sigma,
+                    "w" : w})
+
+problem = Cos1dMulticscale_Extention(domain, nsamples, w)
 #problem = Cos1dMulticscale(domain, nsamples, w)
-problem = Sin1dSecondOrder(domain, nsamples, w)
+#problem = Sin1dSecondOrder(domain, nsamples, w)
 #problem = Cos1d(domain, nsamples, w)
 #problem = Cos2d(domain, nsamples, w)
 
@@ -43,11 +61,11 @@ print('input', input )
 
 # define fbpinn model and trainer
 fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
-fbpinn_trainer = FBPINNTrainer(fbpinn, lr, problem)
+fbpinn_trainer = FBPINNTrainer(run, fbpinn, lr, problem)
 
 # define pinn model and trainer
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
-pinn_trainer = PINNTrainer(pinn, lr, problem)
+pinn_trainer = PINNTrainer(run, pinn, lr, problem)
 
 #pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
@@ -148,7 +166,8 @@ target_dir =current_working_directory + '/results/'
 
 now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H:%M")
-plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
+plot_name = dt_string +'_' + str(round(history_fbpinn[-1],2))
+plot_name = run.name + "_"
 
 plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 

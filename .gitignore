@@ -161,22 +161,7 @@ cython_debug/
 baseline/test.ipynb
 
 results/
-baseline/test/__init__.py
-baseline/test/fbpinn_test.py
-baseline/test/test.py
-baseline/test/test_fbpinn.py
+baseline/test
 baseline/.vscode/settings.json
-baseline/models/10_07_2023_10:27_fbpinn.pt
-baseline/models/10_07_2023_10:27_pinn.pt
-baseline/models/10_07_2023_11:08_fbpinn.pt
-baseline/models/10_07_2023_11:08_pinn.pt
-baseline/models/10_07_2023_11:25_fbpinn.pt
-baseline/models/10_07_2023_11:25_pinn.pt
-baseline/models/10_07_2023_11:50_fbpinn.pt
-baseline/models/10_07_2023_11:50_pinn.pt
-baseline/models/10_07_2023_12:13_fbpinn.pt
-baseline/models/10_07_2023_12:13_pinn.pt
-baseline/models/10_07_2023_13:29_fbpinn.pt
-baseline/models/10_07_2023_13:29_pinn.pt
-baseline/models/10_07_2023_14:14_fbpinn.pt
-baseline/models/10_07_2023_14:14_pinn.pt
+baseline/models
+baseline/wandb

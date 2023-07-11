@@ -238,7 +238,12 @@ class Sin1dSecondOrder(object):
         input_norm = (input - self.mean) / self.std
         tanh = torch.tanh(self.w * input_norm)
 
-        return (- 1 / (self.w ** 2)) * tanh + (tanh ** 2) * pred
+        hc = (- 1 / (self.w ** 2)) * tanh + ((tanh ** 2) * pred)
+
+        assert hc.numel() == input.numel()
+        assert pred.numel() == input.numel()
+
+        return hc
 
 
     def get_gradients(self, pred, input):
@@ -292,7 +297,7 @@ class Sin1dSecondOrder(object):
         """
         
         #unsupervised
-        residual  = self.pde_loss(pred, input)
+        residual  = self.compute_pde_residual(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
@@ -329,18 +334,14 @@ class Cos1dMulticscale_Extention(object):
         self.nsamples = nsamples
 
         # in this case w = (w1,w2,w3,w4,w5)
-        self.w1 = w[0]
-        self.w2 = w[1]
-        self.w3 = w[2]
-        self.w4 = w[3]
-        self.w5 = w[4]
+        self.w = torch.tensor(w)
 
         # mean and variance to normalize hard constraint
         self.mean = (self.domain[1] + self.domain[0]) / 2
         self.std = (self.domain[1] - self.domain[0]) / 2
 
         # mean and variance to unnormalize NNs
-        self.u_sd = 5
+        self.u_sd = len(w)
         self.u_mean = 0
 
         self.training_dataset = self.assemble_dataset()
@@ -373,17 +374,18 @@ class Cos1dMulticscale_Extention(object):
 
         input_norm = (input - self.mean) / self.std
 
-        return torch.tanh(self.w5 * input_norm) * pred 
+        return torch.tanh(self.w[-1] * input_norm) * pred
 
     def compute_pde_residual(self, pred, input):
         """
         Compute PDE loss using autograd
         """
         
-        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
-        f = self.w1 * torch.cos(self.w1 * input) + self.w2 * torch.cos(self.w2 * input) + self.w3 * torch.cos(self.w3 * input) + self.w4 * torch.cos(self.w4 * input) + self.w5 * torch.cos(self.w5 * input)
+        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0].reshape(-1)
+        w = self.w.reshape(-1, 1)
+        f =  torch.sum(w * torch.cos((w * input.reshape(1, -1))), dim=0)
         
-        assert (dx - f).numel() == self.nsamples
+        assert (dx - f).numel() == input.numel()
 
         return dx - f
     
@@ -414,7 +416,9 @@ class Cos1dMulticscale_Extention(object):
 
     def exact_solution(self, input):
 
-        return torch.sin(self.w1 * input) + torch.sin(self.w2 * input) + torch.sin(self.w3 * input) + torch.sin(self.w4 * input) + torch.sin(self.w5 * input)
+        w = self.w.reshape(-1, 1)
+
+        return torch.sum(w * torch.sin(w * input.reshape(1, -1)), dim=0).reshape(-1, 1)
     
     
 class Cos2d(object):

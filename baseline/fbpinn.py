@@ -4,8 +4,6 @@ from torch.optim import Adam, LBFGS
 
 import numpy as np
 
-from multiprocessing import Pool
-
 from nn import NeuralNet as NN
 
 
@@ -316,8 +314,9 @@ class FBPinn(Module):
 
 class FBPINNTrainer:
 
-    def __init__(self, fbpinn, lr, problem):
+    def __init__(self, run, fbpinn, lr, problem):
 
+        self.run = run 
         self.fbpinn = fbpinn
         self.lr = lr
         self.optimizer = Adam(fbpinn.parameters(),
@@ -355,7 +354,12 @@ class FBPINNTrainer:
                     loss.backward(retain_graph=True)
 
                     flops_history.append(flops)
-                    history.append(self.test())
+                    
+                    test_loss = self.test()
+                    history.append(test_loss)
+
+                    self.run.log({"train loss fbpinn" : loss.item(),
+                                  "test loss fbpinn" : test_loss})
 
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
@@ -494,8 +498,9 @@ class Pinn(Module):
 
 class PINNTrainer:
 
-    def __init__(self, pinn, lr, problem):
+    def __init__(self, run, pinn, lr, problem):
 
+        self.run = run 
         self.pinn = pinn
         self.optimizer = Adam(pinn.parameters(),
                             lr=lr)
@@ -532,7 +537,11 @@ class PINNTrainer:
 
                     flops_history.append(flops)
 
-                    history.append(self.test())
+                    test_loss = self.test()
+                    history.append(test_loss)
+
+                    self.run.log({"train loss pinn" : loss.item(),
+                                  "test loss pinn" : test_loss})
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
                     return loss
