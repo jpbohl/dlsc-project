@@ -57,7 +57,7 @@ if isinstance(nwindows, int):
     #print('input', input )
 else:
     trainset, plotset = problem.assemble_dataset()
-    input = next(iter(trainset))[0] # get input points for plotting
+    input = next(iter(plotset))[0] # get input points for plotting
     #print('input', input )
 
 #### FBPiNN trainer
@@ -100,14 +100,14 @@ if isinstance(nwindows, int):
     fig = plt.figure(figsize=(15,8))
     grid = plt.GridSpec(3, 4, hspace=0.4, wspace=0.2)
 
-fbpinn_subdom = fig.add_subplot(grid[0,:2])
-fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
-window_fct = fig.add_subplot(grid[1,0:2])
+    fbpinn_subdom = fig.add_subplot(grid[0,:2])
+    fbpinn_vs_exact = fig.add_subplot(grid[0,2:])
+    window_fct = fig.add_subplot(grid[1,0:2])
 
-pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
+    pinn_vs_exact = fig.add_subplot(grid[-1,0:2])
 
-training_error_l2 = fig.add_subplot(grid[-1,-1])
-training_error_flop= fig.add_subplot(grid[-1,-2])
+    training_error_l2 = fig.add_subplot(grid[-1,-1])
+    training_error_flop= fig.add_subplot(grid[-1,-2])
 
 
     #plot of FBPiNN with subdomain definition - every subdomain different color
@@ -181,6 +181,14 @@ training_error_flop= fig.add_subplot(grid[-1,-2])
     window_fct.set_xlabel('x')
     window_fct.set_title('FBPiNN window function and domains')
 else: 
+    
+    #pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
+    
+    # fbpinn_plot.plot(input.detach().numpy(), pred_fbpinn.detach().numpy(),  label="FBPinn Solution")
+    # fbpinn_vs_exact.set_ylabel('x2')
+    # fbpinn_vs_exact.set_xlabel('x1')
+    # fbpinn_vs_exact.legend()
+    # fbpinn_vs_exact.set_title('FBPiNN: global solution')
     # fig = plt.figure(figsize=(15,8))
     # grid = plt.GridSpec(2, 3, hspace=0.4, wspace=0.2)
     
@@ -193,27 +201,51 @@ else:
     
     #plot of FBPiNN's solution vs exact solution
     #pred_fbpinn, flops = fbpinn(input, active_models=None)
-    pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
+    pred_fbpinn, fbpinn_output, window_output, flops_fbpinn = fbpinn.plotting_data(input)
     pred_fbpinn = pred_fbpinn.reshape(-1, )
-    fig, axs = plt.subplots(1, 2, figsize=(10, 6), dpi=150)
-    #print(input)
-   
-    pred_fbpinn = pred_fbpinn.reshape(-1, )
-    im1 = axs[0].scatter(input[:,1].detach(), input[:,0].detach(), c=pred_fbpinn.detach(), cmap='jet')
+    pred_pinn, flops_pinn = pinn.forward(input)
+    pred_pinn = pred_pinn.reshape(-1, )
+    fig, axs = plt.subplots(1, 3, figsize=(12, 6), dpi=50)
+    
+    im1 = axs[0].scatter(input[:,1].detach(), input[:,0].detach(), c=pred_fbpinn.detach(), cmap='viridis')
     axs[0].set_xlabel('x1')
     axs[0].set_ylabel('x2')
     plt.colorbar(im1, ax=axs[0])
     axs[0].grid(True, which='both', ls=":")
     axs[0].set_title('FBPiNN: global solution')
     
-    #pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
+    im2 = axs[1].scatter(input[:,1].detach(), input[:,0].detach(), c=pred_pinn.detach(), cmap='viridis')
+    axs[1].set_xlabel('x1')
+    axs[1].set_ylabel('x2')
+    plt.colorbar(im2, ax=axs[1])
+    axs[1].grid(True, which='both', ls=":")
+    axs[1].set_title('PiNN: global solution')
     
-    # fbpinn_plot.plot(input.detach().numpy(), pred_fbpinn.detach().numpy(),  label="FBPinn Solution")
-    # fbpinn_vs_exact.set_ylabel('x2')
-    # fbpinn_vs_exact.set_xlabel('x1')
-    # fbpinn_vs_exact.legend()
-    # fbpinn_vs_exact.set_title('FBPiNN: global solution')
+    im3 = axs[2].scatter(input[:,1].detach(), input[:,0].detach(), c=problem.exact_solution(input).detach(), cmap='viridis')
+    axs[2].set_xlabel('x1')
+    axs[2].set_ylabel('x2')
+    plt.colorbar(im3, ax=axs[2])
+    axs[2].grid(True, which='both', ls=":")
+    axs[2].set_title('Exact solution')
     
+    # plot the difference between FBPiNN's solution and exact solution
+    
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6), dpi=50)
+    
+    im4 = axs[0].scatter(input[:,1].detach(), input[:,0].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    axs[0].set_xlabel('x1')
+    axs[0].set_ylabel('x2')
+    plt.colorbar(im4, ax=axs[0])
+    axs[0].grid(True, which='both', ls=":")
+    axs[0].set_title('FBPiNN: difference')
+    
+    im5 = axs[1].scatter(input[:,1].detach(), input[:,0].detach(), c=(pred_pinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    axs[1].set_xlabel('x1')
+    axs[1].set_ylabel('x2')
+    plt.colorbar(im5, ax=axs[1])
+    axs[1].grid(True, which='both', ls=":")
+    axs[1].set_title('PiNN: difference')
+       
 
 #save plots in folder results
 
