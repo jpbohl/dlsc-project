@@ -15,11 +15,10 @@ from datetime import datetime
 #domain = torch.tensor((6/(20*torch.pi), 6/torch.pi)) # for xsin(1/x)
 #domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi))) # for 2D
-nsamples = 250
+nsamples = 1000
 #nwindows = 30
-nwindows = (15,15)
-nepochs = 5
-nepochs_pinn = 20
+nepochs = 1
+nepochs_pinn = 2
 lr = 1e-3
 hidden = 2
 pinn_hidden = 5
@@ -27,7 +26,8 @@ neurons = 16
 pinn_neurons = 64
 overlap = 0.25
 sigma = 0.0001
-w=15
+w=2
+nwindows = (w,w)
 
 #w = (1, 2, 4, 8, 16)
 
@@ -198,29 +198,30 @@ else:
     # exact_plot = fig.add_subplot(grid[0,2])
     # training_error_l2 = fig.add_subplot(grid[1,2])
     
-    #plot of FBPiNN's solution vs exact solution
-    #pred_fbpinn, flops = fbpinn(input, active_models=None)
+    # #plot of FBPiNN's solution vs exact solution
+    # #pred_fbpinn, flops = fbpinn(input, active_models=None)
     pred_fbpinn, fbpinn_output, window_output, flops_fbpinn = fbpinn.plotting_data(input)
     pred_fbpinn = pred_fbpinn.reshape(-1, )
+    
     pred_pinn, flops_pinn = pinn.forward(input)
     pred_pinn = pred_pinn.reshape(-1, )
     fig, axs = plt.subplots(2, 3, figsize=(12, 6), dpi=50)
     
-    im1 = axs[0,0].scatter(input[:,1].detach(), input[:,0].detach(), c=pred_fbpinn.detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
+    im1 = axs[0,0].scatter(input[:,0].detach(), input[:,1].detach(), c=pred_fbpinn.detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
     axs[0,0].set_xlabel('x1')
     axs[0,0].set_ylabel('x2')
     plt.colorbar(im1, ax=axs[0,0])
     axs[0,0].grid(True, which='both', ls=":")
     axs[0,0].set_title('FBPiNN: global solution')
     
-    im2 = axs[0,1].scatter(input[:,1].detach(), input[:,0].detach(), c=pred_pinn.detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
+    im2 = axs[0,1].scatter(input[:,0].detach(), input[:,1].detach(), c=pred_pinn.detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
     axs[0,1].set_xlabel('x1')
     axs[0,1].set_ylabel('x2')
     plt.colorbar(im2, ax=axs[0,1])
     axs[0,1].grid(True, which='both', ls=":")
     axs[0,1].set_title('PiNN: global solution')
     
-    im3 = axs[0,2].scatter(input[:,1].detach(), input[:,0].detach(), c=problem.exact_solution(input).detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
+    im3 = axs[0,2].scatter(input[:,0].detach(), input[:,1].detach(), c=problem.exact_solution(input).detach(), cmap='viridis', vmin=-3/w, vmax= 3/w)
     axs[0,2].set_xlabel('x1')
     axs[0,2].set_ylabel('x2')
     plt.colorbar(im3, ax=axs[0,2])
@@ -231,14 +232,14 @@ else:
     
     #fig, axs = plt.subplots(1, 3, figsize=(12, 6), dpi=50)
     
-    im4 = axs[1,0].scatter(input[:,1].detach(), input[:,0].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    im4 = axs[1,0].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis')
     axs[1,0].set_xlabel('x1')
     axs[1,0].set_ylabel('x2')
     plt.colorbar(im4, ax=axs[1,0])
     axs[1,0].grid(True, which='both', ls=":")
     axs[1,0].set_title('FBPiNN: difference')
     
-    im5 = axs[1,1].scatter(input[:,1].detach(), input[:,0].detach(), c=(pred_pinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    im5 = axs[1,1].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_pinn-problem.exact_solution(input)).detach(), cmap='viridis')
     axs[1,1].set_xlabel('x1')
     axs[1,1].set_ylabel('x2')
     plt.colorbar(im5, ax=axs[1,1])
@@ -252,8 +253,12 @@ else:
     training_error_l2.set_ylabel('Relative L2 error')
     training_error_l2.legend()
     training_error_l2.set_title('Comparing test errors')
+    
+    # window_plot = axs[1,2]
+    # for i in range(nwindows[0]*nwindows[1]):
+    #         window_plot.scatter(input[:,0].detach(),input[:,0].detach(), c=(window_output[i,]).detach(), cmap = 'viridis')
     plt.tight_layout()
-       
+    #print(window_output[0, ], sum(window_output[0, ]), window_output[0,].shape)
 
 #save plots in folder results
 

@@ -156,7 +156,7 @@ class FBPinn(Module):
             midpoints_row[0] = self.subdomains[0][0]
             midpoints_row[self.nwindows[0]] = self.subdomains[self.nwindows[0]-1][1]
             midpoints_col[0] = self.subdomains[0][0]
-            midpoints_col[self.nwindows[1]] = self.subdomains[self.nwindows[1]-1][1]
+            midpoints_col[self.nwindows[1]] = self.subdomains[self.nwindows[0]+self.nwindows[1]-1][1]
             
             for i in range(1,self.nwindows[0]):
                 midpoints_row[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2
@@ -177,12 +177,19 @@ class FBPinn(Module):
             window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
         # 2D case
         else:
-            x_left = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration][0])) / self.sigma
-            x_right = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration+1][0])) / self.sigma
-            y_left = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration][1])) / self.sigma
-            y_right = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration+1][1])) / self.sigma
+            r, c = divmod(iteration, self.nwindows[1])
+            r = r * (self.nwindows[0]+1)
+            
+            #print(self.get_midpoints_overlap(), self.subdomains, self.get_midpoints())
+            x_left = (torch.sub(input[:,0], self.get_midpoints_overlap()[r+c][0])) / self.sigma
+            x_right = (torch.sub(input[:,0], self.get_midpoints_overlap()[r+c+1+self.nwindows[1]][0])) / self.sigma
+            y_left = (torch.sub(input[:,1], self.get_midpoints_overlap()[r+c][1])) / self.sigma
+            y_right = (torch.sub(input[:,1], self.get_midpoints_overlap()[r+c+1][1])) / self.sigma
             window = torch.sigmoid(x_left) * torch.sigmoid(-x_right) * torch.sigmoid(y_left) * torch.sigmoid(-y_right)
-                  
+            # print("check", self.get_midpoints_overlap()[r+c][0], self.get_midpoints_overlap()[r+c+1+self.nwindows[1]][0], 
+            #       self.get_midpoints_overlap()[r+c][1], self.get_midpoints_overlap()[r+c+1][1], iteration, r, c )
+            #print("midpoints", self.get_midpoints_overlap()) 
+            #print("subdomains", self.subdomains)     
         #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
         #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
         
@@ -254,8 +261,7 @@ class FBPinn(Module):
             else:
             #2D case
                 row, col = divmod(i, self.nwindows[1])
-                col = col + self.nwindows[0]
-                #print(row, col)            
+                col = col + self.nwindows[0]         
                 # get index for points which are in model i subdomain
                 in_subdomain = (self.subdomains[row][0] < input[:,0]) & (input[:,0] < self.subdomains[row][1]) & (self.subdomains[col][0] < input[:,1]) & (input[:,1] < self.subdomains[col][1])
                 #print("in_sub",in_subdomain)
@@ -274,26 +280,30 @@ class FBPinn(Module):
                 assert((-1 <= input_norm[:,0]).all().item())
                 assert((input_norm[:,1] <= 1).all().item())
                 assert((-1 <= input_norm[:,1]).all().item())
+                pass
 
             # model i prediction
-            output = model(input_norm).reshape(-1)
-           
+            output = model(input_norm).reshape(-1)            
             output = output * self.u_sd + self.u_mean
             #print("output.shape", output.shape)
+            
             # compute window function for subdomain i
             window = self.compute_window(input[in_subdomain], i)
-            #print("window", window.shape)
+            #print("window", window)
             #print(pred.shape)
             # add prediction to total output
             #print((window*output).shape)
             #print("pred", pred.shape, in_subdomain.shape)
             pred[in_subdomain] += window * output
+            #print("pred[in_sub]", pred[in_subdomain])
             #print("pred_ fbpinn", pred.shape)
             #add the number of flops for each trained network on subdomain
             flops += model.flops(input_norm.shape[0])
             #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
             
+        #print("pred_before", pred)    
         pred = self.problem.hard_constraint(pred, input)
+        #print("pred_after", pred)
 
         return pred, flops
     
@@ -356,15 +366,20 @@ class FBPinn(Module):
                 # normalize data to given subdomain and extract relevant points
                 input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 2)
                 output = model(input_norm)
+                output = output.squeeze()
+                #print("output", output.shape)
                 output = output * self.u_sd + self.u_mean
                 window = self.compute_window(input, i)
+                #print(window)
                 #print("window", window.shape, output.squeeze().shape, (window*output.squeeze()).shape)
                 ind_pred = window * (output.squeeze())
+                #print("ind_pred", ind_pred)
                 pred += ind_pred
                 ind_pred = self.problem.hard_constraint(ind_pred, input)
                 window_output[i,] = window.reshape(1,-1)[0]
+                #print("window_output", window_output[i,])
                 fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
-                flops += model.flops(input_norm.shape[0])              
+                flops += model.flops(input_norm.shape[0])
             pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
@@ -381,7 +396,7 @@ class FBPINNTrainer:
         else:
             self.optimizer = LBFGS(fbpinn.parameters(),
                                         lr=float(0.5),
-                                        max_iter=50000,
+                                        max_iter=20,
                                         max_eval=50000,
                                         history_size=150,
                                         line_search_fn="strong_wolfe",
@@ -403,8 +418,6 @@ class FBPINNTrainer:
                
                 def closure():
                     self.optimizer.zero_grad()
-                   
-
                     input_.requires_grad_(True) # allow gradients wrt to input for pde loss
                     pred, flops = self.fbpinn(input_, active_models=active_models)
                     loss = self.problem.compute_loss(pred, input_)
@@ -413,12 +426,10 @@ class FBPINNTrainer:
                     flops_history.append(flops)
                     history.append(self.test())
 
-
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
                     return loss
 
-                
-            self.optimizer.step(closure=closure)
+                self.optimizer.step(closure=closure)
 
             input = next(iter(trainset))[0]
             pred, _ = self.fbpinn(input)
@@ -532,14 +543,15 @@ class Pinn(Module):
         # model prediction
         pred = self.model(input_norm) 
         #print("pred Pinn forward", pred.shape)
-
-        # unnormalize prediction
-        pred = pred * self.u_sd + self.u_mean
         if self.domain.ndim == 2:
             pred = pred.squeeze()
+        # unnormalize prediction
+        pred = pred * self.u_sd + self.u_mean
+        
         
         #print("pred Pinn forward2", pred.shape)
         # apply hard constraint
+        
         output = self.problem.hard_constraint(pred, input)
         #print("output Pinn forward", output.shape)
 
