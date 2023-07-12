@@ -419,11 +419,11 @@ class Cos2d(object):
 #domain = [-2*pi,2*pi]x[-2*pi,2*pi]
 #solution u(x1,x2)=1/ω sin(ω*x1)+1/ω sin(ω*x2)
 
-    def __init__(self, domain, nsamples, nsamples_2d, w):
+    def __init__(self, domain, nsamples, w):
 
         self.domain = domain
         self.nsamples = nsamples
-        self.nsamples_2d = nsamples_2d
+        self.nsamples_2d = 70000
 
         # in this case w = w
         self.w = w
@@ -433,7 +433,7 @@ class Cos2d(object):
         self.std = (self.domain[:, 1] - self.domain[:, 0]) / 2
 
         # mean and variance to unnormalize NNs
-        self.u_sd = 1
+        self.u_sd = 1/w
         self.u_mean = 0
 
         self.training_dataset = self.assemble_dataset()
@@ -454,7 +454,8 @@ class Cos2d(object):
         points = points * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0] 
         points_plot = points_plot * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0]
         #print("points", points)
-    
+
+        points = points[points[:,0].argsort()]
         
         dataset = TensorDataset(points)
         dataset_plot = TensorDataset(points_plot)
@@ -470,8 +471,9 @@ class Cos2d(object):
         boundary conditions
         """
 
-        #print("input problem", input.shape)
-        output = 1/self.w * torch.sin(self.w *input[:, 1])*torch.tanh(self.w * input[:, 0]) * pred 
+        input_norm = (input - self.mean) / self.std
+        #print("input_norm problem", input_norm.shape)
+        output = 1/self.w * torch.sin(self.w *input[:, 1]) + torch.tanh(self.w * input_norm[:, 0]) * pred 
         assert output.numel() == input.shape[0]
         #print("output problem", output.shape)
         return output
@@ -483,6 +485,7 @@ class Cos2d(object):
         
         dx1 = torch.autograd.grad(pred.sum(), input, create_graph=True)[0][:,0]
         dx2 = torch.autograd.grad(pred.sum(), input, create_graph=True)[0][:,1]
+        
         f = torch.cos(self.w * input[:, 0]) +torch.cos(self.w * input[:, 1])
         
         assert (dx1+dx2 - f).numel() == self.nsamples
@@ -497,6 +500,7 @@ class Cos2d(object):
         #unsupervised
         r_int  = self.compute_pde_residual(pred, input)
         loss_int = torch.mean(abs(r_int) ** 2)
+        #loss_int = self.debug_loss(pred, input)
 
         #get log loss 
         loss = torch.log10(loss_int)
@@ -511,7 +515,7 @@ class Cos2d(object):
 
         assert residual.numel() == self.nsamples
 
-        return torch.mean(residual ** 2)
+        return torch.mean(abs(residual) ** 2)
 
 
     def exact_solution(self, input):
