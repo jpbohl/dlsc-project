@@ -11,7 +11,7 @@ from nn import NeuralNet as NN
 
 class FBPinn(Module):
 
-    def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma):
+    def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma, manual_part=[]):
         super(FBPinn, self).__init__()
 
         self.nwindows = nwindows
@@ -19,7 +19,13 @@ class FBPinn(Module):
         self.domain = domain # domain of the form torch.tensor([[a, b], [c, d], ...]) depending on dimension
         self.overlap = overlap # percentage of overlap of subdomains
         self.sigma = sigma # parameter (set) for window function
-        self.subdomains = self.partition_domain()
+
+        self.manual_part=manual_part
+        if len(self.manual_part)==0:
+            self.subdomains = self.partition_domain()
+        else:
+            self.subdomains = self.manual_partition()     
+
         self.means = self.get_midpoints()
         if isinstance(self.nwindows, int):
             self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
@@ -40,6 +46,29 @@ class FBPinn(Module):
         else:
             self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows[0]*self.nwindows[1])])
 
+    def manual_partition(self):
+        #given a list of midpoints  e.g. manual_part: [0.1,0.2,0.25,0.3,0.6] on [0,0.75]
+        #nwindows is len(list)+1
+        assert self.nwindows == len(self.manual_part)+1
+
+        partition= self.manual_part.copy()
+
+        #make it [0,0.1,0.2,0.25,0.3,0.60,0.75]
+        partition.insert(0,self.domain[0].item())
+        partition.insert(len(partition),self.domain[1].item())
+
+        #width is 0.1-0 , 0.2-0.1, 0.25-0.2, 0.3-0.25, 0.6-0.3, 0.75-0.6
+        width= torch.zeros(self.nwindows, 1)
+        for i in range(self.nwindows):
+            width[i]= partition[i+1]-partition[i]
+
+        subdomains = torch.zeros(self.nwindows, 2)
+        for i in range(self.nwindows):
+            subdomains[i][0] = partition[i]- width[i]*self.overlap/2 if i != 0 else partition[0]
+            subdomains[i][1] = partition[i+1]+ width[i]*self.overlap/2 if i != (self.nwindows-1) else partition[-1]
+        #do not need to run midpoints (should be the same)
+        
+        return subdomains
 
     ###  Task Allebasi
     def partition_domain(self):
@@ -275,62 +304,89 @@ class FBPinn(Module):
         """
 
         #output for every subdomain: dimension  nwindows*input
-        fbpinn_output = torch.zeros(self.nwindows, input.size(0))
-        window_output = torch.zeros(self.nwindows, input.size(0))
-        pred = torch.zeros_like(input)
-        flops = 0
-        
-        for i in range(self.nwindows):
-
-            model = self.models[i] # get model i
+        if isinstance(self.nwindows, int):
+            fbpinn_output = torch.zeros(self.nwindows, input.size(0))
+            window_output = torch.zeros(self.nwindows, input.size(0))
+            pred = torch.zeros_like(input)
+            flops = 0
             
-            # normalize data to given subdomain and extract relevant points
-            input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 1)
+            
+            for i in range(self.nwindows):
 
-            # model i prediction
-            output = model(input_norm)
+                model = self.models[i] # get model i
+                
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 1)
 
-            output = output * self.u_sd + self.u_mean
+                # model i prediction
+                output = model(input_norm)
 
-            # compute window function for subdomain i
-            window = self.compute_window(input, i)
+                output = output * self.u_sd + self.u_mean
 
-            # prediction of individual network times window function
-            ind_pred = window * output
+                # compute window function for subdomain i
+                window = self.compute_window(input, i)
 
-            # add prediction to total output
-            # sum neural networks in overlapping regions
-            pred += ind_pred
+                # prediction of individual network times window function
+                ind_pred = window * output
 
-            ind_pred = self.problem.hard_constraint(ind_pred, input)
-            window_output[i,] = window.reshape(1,-1)[0]
-            fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+                # add prediction to total output
+                # sum neural networks in overlapping regions
+                pred += ind_pred
 
-            #add the number of flops for each trained network on subdomain
-            flops += model.flops(input_norm.shape[0])
-            #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
+                ind_pred = self.problem.hard_constraint(ind_pred, input)
+                window_output[i,] = window.reshape(1,-1)[0]
+                fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+
+                #add the number of flops for each trained network on subdomain
+                flops += model.flops(input_norm.shape[0])
+                #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
         
-        pred = self.problem.hard_constraint(pred, input)
+            pred = self.problem.hard_constraint(pred, input)
+            
+        else:
+            fbpinn_output = torch.zeros(self.nwindows[0] * self.nwindows[1], input.size(0))
+            window_output = torch.zeros(self.nwindows[0] * self.nwindows[1], input.size(0))
+            pred = torch.zeros_like(input[:,0])
+            flops = 0
+            
+            for i in range(self.nwindows[0] * self.nwindows[1]):
+
+                model = self.models[i]
+                
+                # normalize data to given subdomain and extract relevant points
+                input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 2)
+                output = model(input_norm)
+                output = output * self.u_sd + self.u_mean
+                window = self.compute_window(input, i)
+                #print("window", window.shape, output.squeeze().shape, (window*output.squeeze()).shape)
+                ind_pred = window * (output.squeeze())
+                pred += ind_pred
+                ind_pred = self.problem.hard_constraint(ind_pred, input)
+                window_output[i,] = window.reshape(1,-1)[0]
+                fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
+                flops += model.flops(input_norm.shape[0])              
+            pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
 
 class FBPINNTrainer:
 
-    def __init__(self, fbpinn, lr, problem):
+    def __init__(self, fbpinn, lr, problem, optim='adam'):
 
         self.fbpinn = fbpinn
         self.lr = lr
-        self.optimizer = Adam(fbpinn.parameters(),
-                            lr=lr)
-        '''
-        self.optimizer = LBFGS(fbpinn.parameters(),
-                                    lr=float(0.5),
-                                    max_iter=50000,
-                                    max_eval=50000,
-                                    history_size=150,
-                                    line_search_fn="strong_wolfe",
-                                    tolerance_change=1.0 * np.finfo(float).eps)
-        '''
+        if optim == 'adam':
+            self.optimizer = Adam(fbpinn.parameters(),
+                                lr=lr)
+        else:
+            self.optimizer = LBFGS(fbpinn.parameters(),
+                                        lr=float(0.5),
+                                        max_iter=50000,
+                                        max_eval=50000,
+                                        history_size=150,
+                                        line_search_fn="strong_wolfe",
+                                        tolerance_change=1.0 * np.finfo(float).eps)
+        
         self.problem = problem
         
     def train(self, nepochs, trainset, active_models=None): 
@@ -494,20 +550,21 @@ class Pinn(Module):
 
 class PINNTrainer:
 
-    def __init__(self, pinn, lr, problem):
+    def __init__(self, pinn, lr, problem, optim = 'adam'):
 
         self.pinn = pinn
-        self.optimizer = Adam(pinn.parameters(),
-                            lr=lr)
-        '''             
-        self.optimizer = LBFGS(pinn.parameters(),
-                              lr=float(0.5),
-                              max_iter=50,
-                              max_eval=50000,
-                              history_size=150,
-                              line_search_fn="strong_wolfe",
-                              tolerance_change=0.5 * np.finfo(float).eps)
-        '''
+        if optim== 'adam':
+            self.optimizer = Adam(pinn.parameters(),
+                                lr=lr)
+        else:           
+            self.optimizer = LBFGS(pinn.parameters(),
+                                lr=float(0.5),
+                                max_iter=50000,
+                                max_eval=50000,
+                                history_size=150,
+                                line_search_fn="strong_wolfe",
+                                tolerance_change=0.5 * np.finfo(float).eps)
+        
         self.problem = problem
         
 

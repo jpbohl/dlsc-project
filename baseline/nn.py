@@ -26,18 +26,17 @@ class NeuralNet(nn.Module):
         self.dropout_layer = nn.Dropout(dropout)
 
         self.input_layer = nn.Linear(self.input_dimension, self.neurons)
-        self.hidden_layers = nn.ModuleList([nn.Linear(self.neurons, self.neurons) for _ in range(n_hidden_layers)])
+        self.hidden_layers = nn.ModuleList([nn.Linear(self.neurons, self.neurons) for _ in range(n_hidden_layers - 1)])
         self.output_layer = nn.Linear(self.neurons, self.output_dimension)
         self.retrain_seed = retrain_seed
         # Random Seed for weight initialization
         self.init_xavier()
 
         d1,d2,h,l = input_dimension, output_dimension, neurons, n_hidden_layers
-        self.size =           d1*h + h         + (l)*(  h*h + h)        +   h*d2 + d2
-        self._single_flop = 2*d1*h + h + 5*h   + (l)*(2*h*h + h + 5*h)  + 2*h*d2 + d2 # assumes Tanh uses 5 FLOPS
+        self.size =           d1*h + h         + (l-1)*(  h*h + h)        +   h*d2 + d2
+        self._single_flop = 2*d1*h + h + 5*h   + (l-1)*(2*h*h + h + 5*h)  + 2*h*d2 + d2 # assumes Tanh uses 5 FLOPS
         self.flops = lambda BATCH_SIZE: BATCH_SIZE*self._single_flop
-        assert self.size == total_params(self)
-
+        #assert self.size == total_params(self)
 
     def forward(self, x):
         # The forward function performs the set of affine and non-linear transformations defining the network

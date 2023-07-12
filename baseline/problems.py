@@ -46,6 +46,7 @@ class Cos1d(object):
 
         return torch.tanh(self.w * input) * pred 
 
+
     def compute_pde_residual(self, pred, input): 
         """
         Compute PDE loss using autograd
@@ -63,7 +64,7 @@ class Cos1d(object):
         Compute loss by applying the norm to the pde residual 
         """
         
-        residual  = self.pde_loss(pred, input)
+        residual  = self.compute_pde_residual(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
@@ -122,7 +123,7 @@ class Cos1dMulticscale(object):
         points = sobol.draw(self.nsamples)
 
         #sample points in [a,b]
-        points = points * (self.domain[1] - self.domain[0]) + self.domain[0] #maybe - ?
+        points = points * (self.domain[1] - self.domain[0]) + self.domain[0] 
         
         #in 1d we sort the points in ascending order 
         points, indices = torch.sort(points, dim=-2)
@@ -418,10 +419,11 @@ class Cos2d(object):
 #domain = [-2*pi,2*pi]x[-2*pi,2*pi]
 #solution u(x1,x2)=1/ω sin(ω*x1)+1/ω sin(ω*x2)
 
-    def __init__(self, domain, nsamples, w):
+    def __init__(self, domain, nsamples, nsamples_2d, w):
 
         self.domain = domain
         self.nsamples = nsamples
+        self.nsamples_2d = nsamples_2d
 
         # in this case w = w
         self.w = w
@@ -442,19 +444,25 @@ class Cos2d(object):
         for training.
         """
 
-        sobol = torch.quasirandom.SobolEngine(dimension=2, seed=0)
+        sobol = torch.quasirandom.SobolEngine(dimension=2, seed=0, scramble=True)
+        # point = sobol.draw(self.nsamples).reshape(-1, )
+        # points =torch.cartesian_prod(point, point)
         points = sobol.draw(self.nsamples)
-
+        points_plot = sobol.draw(self.nsamples_2d)
+    
         #sample points in [a,b]x[c,d]
         points = points * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0] 
-        
-        #in 2d we sort the points in ascending order 
-        points, indices = torch.sort(points, dim=-2)
+        points_plot = points_plot * (self.domain[:,1] - self.domain[:,0]) + self.domain[:,0]
+        #print("points", points)
+    
         
         dataset = TensorDataset(points)
+        dataset_plot = TensorDataset(points_plot)
+        
         dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
+        dataloader_plot = DataLoader(dataset_plot, batch_size=self.nsamples_2d, shuffle=False)
 
-        return dataloader
+        return dataloader, dataloader_plot
 
     def hard_constraint(self, pred, input):
         """
@@ -509,3 +517,94 @@ class Cos2d(object):
     def exact_solution(self, input):
 
         return 1/self.w *torch.sin(self.w * input[:, 0]) + 1/self.w* torch.sin(self.w * input[:, 1]) 
+    
+
+class Sin_osc(object):
+
+#define problem together with exact solution to
+#du/dx = -(Cos[6/x]/x) + 1/6 Sin[6/x]
+#u(1/Pi) = 1/Pi
+#solution u(x)= x/6 Sin[6/x] 
+
+#smallest width for (1/20pi, 1/pi) is 0.005
+
+#domain  is torch.tensor((6/(20*torch.pi), 6/torch.pi))
+#partition manual_part= [6/(i*torch.pi) for i in reversed(range(2,20))] #length 18 
+
+    def __init__(self, domain, nsamples, w=1):
+
+        self.domain = domain
+        self.nsamples = nsamples
+        self.w = w
+
+        # Mean and variance to normalize hard constraint
+        self.mean = (self.domain[1] + self.domain[0]) / 2
+        self.std = (self.domain[1] - self.domain[0]) / 2
+        
+        # Mean and variance for unnormalisation
+        self.u_sd = 0.2
+        self.u_mean = 0
+
+    def assemble_dataset(self):
+        """
+        Sample points in given domain and create dataloader
+        for training.
+        """
+
+        sobol = torch.quasirandom.SobolEngine(1, seed=0)
+        points = sobol.draw(self.nsamples)
+
+        points = points * (self.domain[1] - self.domain[0]) + self.domain[0]
+
+        #in 1d we sort the points in ascending order 
+        points, indices = torch.sort(points,dim=0)
+
+        dataset = TensorDataset(points)
+        dataloader = DataLoader(dataset, batch_size=self.nsamples, shuffle=False)
+
+        return dataloader
+
+    def hard_constraint(self, pred, input):
+
+        return torch.tanh(self.w * (input-6/(torch.pi*10))) * pred 
+
+    def compute_pde_residual(self, pred, input): 
+        """
+        Compute PDE loss using autograd
+        """
+
+        # -(Cos[1/x]/x) + Sin[1/x]
+
+        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
+        f = -(torch.cos(6/input)/input +1/6*torch.sin(6/input))
+        
+        assert (dx - f).numel() == self.nsamples
+
+        return dx - f
+    
+    def compute_loss(self, pred, input, verbose=False):
+        """
+        Compute loss by applying the norm to the pde residual 
+        """
+        
+        residual  = self.compute_pde_residual(pred, input)
+        loss = torch.mean(abs(residual) ** 2)
+
+        #get log loss 
+        loss = torch.log10(loss)
+
+        if verbose: print("Total loss: ", round(loss.item(), 4))
+
+        return loss
+
+    def debug_loss(self, pred, input):
+
+        residual = pred -  self.exact_solution(input)
+
+        assert residual.numel() == self.nsamples
+
+        return torch.mean(residual ** 2)
+
+    def exact_solution(self, input):
+
+        return input/6*torch.sin(6/input)
