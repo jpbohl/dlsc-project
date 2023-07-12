@@ -62,17 +62,10 @@ class FBPinn(Module):
         for i in range(self.nwindows):
             width[i]= partition[i+1]-partition[i]
 
-        #set overlap of e.g. 0.05
-
-        #get true subdomains by 
-        # 0 , 0.1+0.05/2
-        #  0.1-0.05/2, 0.2 + 0.05/2
-        # ...
-        # 0.6- 0.05/2 , 0.75
         subdomains = torch.zeros(self.nwindows, 2)
         for i in range(self.nwindows):
-            subdomains[i][0] = partition[i]- self.overlap/2 if i != 0 else partition[0]
-            subdomains[i][1] = partition[i+1]+ self.overlap/2 if i != (self.nwindows-1) else partition[-1]
+            subdomains[i][0] = partition[i]- width[i]*self.overlap/2 if i != 0 else partition[0]
+            subdomains[i][1] = partition[i+1]+ width[i]*self.overlap/2 if i != (self.nwindows-1) else partition[-1]
         #do not need to run midpoints (should be the same)
         
         return subdomains
@@ -378,21 +371,22 @@ class FBPinn(Module):
 
 class FBPINNTrainer:
 
-    def __init__(self, fbpinn, lr, problem):
+    def __init__(self, fbpinn, lr, problem, optim='adam'):
 
         self.fbpinn = fbpinn
         self.lr = lr
-        self.optimizer = Adam(fbpinn.parameters(),
-                            lr=lr)
-        '''
-        self.optimizer = LBFGS(fbpinn.parameters(),
-                                    lr=float(0.5),
-                                    max_iter=50000,
-                                    max_eval=50000,
-                                    history_size=150,
-                                    line_search_fn="strong_wolfe",
-                                    tolerance_change=1.0 * np.finfo(float).eps)
-        '''
+        if optim == 'adam':
+            self.optimizer = Adam(fbpinn.parameters(),
+                                lr=lr)
+        else:
+            self.optimizer = LBFGS(fbpinn.parameters(),
+                                        lr=float(0.5),
+                                        max_iter=50000,
+                                        max_eval=50000,
+                                        history_size=150,
+                                        line_search_fn="strong_wolfe",
+                                        tolerance_change=1.0 * np.finfo(float).eps)
+        
         self.problem = problem
         
     def train(self, nepochs, trainset, active_models=None): 
@@ -556,20 +550,21 @@ class Pinn(Module):
 
 class PINNTrainer:
 
-    def __init__(self, pinn, lr, problem):
+    def __init__(self, pinn, lr, problem, optim = 'adam'):
 
         self.pinn = pinn
-        self.optimizer = Adam(pinn.parameters(),
-                            lr=lr)
-        '''             
-        self.optimizer = LBFGS(pinn.parameters(),
-                              lr=float(0.5),
-                              max_iter=50,
-                              max_eval=50000,
-                              history_size=150,
-                              line_search_fn="strong_wolfe",
-                              tolerance_change=0.5 * np.finfo(float).eps)
-        '''
+        if optim== 'adam':
+            self.optimizer = Adam(pinn.parameters(),
+                                lr=lr)
+        else:           
+            self.optimizer = LBFGS(pinn.parameters(),
+                                lr=float(0.5),
+                                max_iter=50000,
+                                max_eval=50000,
+                                history_size=150,
+                                line_search_fn="strong_wolfe",
+                                tolerance_change=0.5 * np.finfo(float).eps)
+        
         self.problem = problem
         
 

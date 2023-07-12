@@ -21,7 +21,7 @@ hidden = 2
 pinn_hidden = 5
 neurons = 16
 pinn_neurons = 128
-overlap = 0.001
+overlap = 0.25
 sigma = 0.002
 
 

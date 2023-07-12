@@ -125,7 +125,7 @@ class Cos1dMulticscale(object):
         points = sobol.draw(self.nsamples)
 
         #sample points in [a,b]
-        points = points * (self.domain[1] - self.domain[0]) + self.domain[0] #maybe - ?
+        points = points * (self.domain[1] - self.domain[0]) + self.domain[0] 
         
         #in 1d we sort the points in ascending order 
         points, indices = torch.sort(points, dim=-2)
