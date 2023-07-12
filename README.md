@@ -19,7 +19,7 @@ and exact solution if available.
 
 Contains the base fully connected neural network used to build PiNNs and FBPiNNs.
 
-### fbpinn
+### fbpinn.py
 
 Contains classes implementing FBPiNN and PiNN as torch.nn.Module children. 
 The FBPiNN splits the domain into subdomains, computes window functions and then combines the different models in the forward pass. 
