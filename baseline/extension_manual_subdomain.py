@@ -14,8 +14,8 @@ from datetime import datetime
 domain = torch.tensor((6/(20*torch.pi), 6/torch.pi)) # for xsin(1/x)
 nsamples = 3000
 nwindows = 19
-nepochs = 10
-nepochs_pinn = 10
+nepochs = 10000
+nepochs_pinn = 10000
 lr = 1e-4
 hidden = 2
 pinn_hidden = 5

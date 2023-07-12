@@ -64,8 +64,8 @@ class FBPinn(Module):
 
         subdomains = torch.zeros(self.nwindows, 2)
         for i in range(self.nwindows):
-            subdomains[i][0] = partition[i]- width[i]*self.overlap/2 if i != 0 else partition[0]
-            subdomains[i][1] = partition[i+1]+ width[i]*self.overlap/2 if i != (self.nwindows-1) else partition[-1]
+            subdomains[i][0] = partition[i]- self.overlap/2 if i != 0 else partition[0]
+            subdomains[i][1] = partition[i+1]+ self.overlap/2 if i != (self.nwindows-1) else partition[-1]
         #do not need to run midpoints (should be the same)
         
         return subdomains
