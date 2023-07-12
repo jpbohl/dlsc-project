@@ -21,24 +21,27 @@ domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
 nwindows = 30
 #nwindows = (6,2)
-nepochs = 5000
-nepochs_pinn = 5000
-lr = 1e-3 #3
+nepochs = 2000
+nepochs_pinn = 2000
+optimizer = "ADAM"
+lr = 1e-3
 hidden = 2
 pinn_hidden = 4
-neurons = 32
+neurons = 16
 pinn_neurons = 64
 overlap = 0.25
-sigma = 0.02
-#w = 15
-w = [2 ** i for i in range(5)]
+sigma = 0.05
+w = 15
+#w = [2 ** i for i in range(5)]
+debug_loss = False
 
-run = wandb.init(project="Multiscale Extension",
+run = wandb.init(project="Sin1D 2ndOrder",
                  config={
                     "nsamples" : nsamples,
                     "nwindows" : nwindows,
                     "nepochs" : nepochs,
                     "nepochs_pinn" : nepochs_pinn,
+                    "optimizer" : optimizer,
                     "lr" : lr,
                     "hidden" : hidden,
                     "pinn_hidden" : pinn_hidden,
@@ -46,11 +49,12 @@ run = wandb.init(project="Multiscale Extension",
                     "pinn_neurons" : pinn_neurons,
                     "overlap" : overlap,
                     "sigma" : sigma,
+                    "debug_loss" : debug_loss,
                     "w" : w})
 
-problem = Cos1dMulticscale_Extention(domain, nsamples, w)
+#problem = Cos1dMulticscale_Extention(domain, nsamples, w)
 #problem = Cos1dMulticscale(domain, nsamples, w)
-#problem = Sin1dSecondOrder(domain, nsamples, w)
+problem = Sin1dSecondOrder(domain, nsamples, w)
 #problem = Cos1d(domain, nsamples, w)
 #problem = Cos2d(domain, nsamples, w)
 
@@ -61,14 +65,14 @@ print('input', input )
 
 # define fbpinn model and trainer
 fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
-fbpinn_trainer = FBPINNTrainer(run, fbpinn, lr, problem)
+fbpinn_trainer = FBPINNTrainer(run, fbpinn, lr, problem, optimizer, debug_loss)
 
 # define pinn model and trainer
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
-pinn_trainer = PINNTrainer(run, pinn, lr, problem)
+pinn_trainer = PINNTrainer(run, pinn, lr, problem, optimizer, debug_loss)
 
 #pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
-pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
+pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
