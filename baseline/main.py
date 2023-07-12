@@ -72,7 +72,7 @@ pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(run, pinn, lr, problem, optimizer, debug_loss)
 
 #pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
-pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
+pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
 
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()

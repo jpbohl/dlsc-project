@@ -44,9 +44,8 @@ class Cos1d(object):
 
     def hard_constraint(self, pred, input):
 
-        input_norm = (input - self.mean) / self.std
 
-        return torch.tanh(self.w * input_norm) * pred 
+        return torch.tanh(self.w * input) * pred 
 
     def pde_loss(self, pred, input):
         dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
@@ -153,9 +152,7 @@ class Cos1dMulticscale(object):
         boundary conditions
         """
 
-        input_norm = (input - self.mean) / self.std
-
-        return torch.tanh(self.w2 * input_norm) * pred 
+        return torch.tanh(self.w2 * input) * pred 
 
     def compute_pde_residual(self, pred, input):
         """
@@ -248,7 +245,6 @@ class Sin1dSecondOrder(object):
         boundary conditions
         """
 
-        input_norm = (input - self.mean) / self.std
         tanh = torch.tanh(self.w * input)
 
         hc = (- 1 / (self.w ** 2)) * tanh + ((tanh ** 2) * pred)
@@ -275,7 +271,7 @@ class Sin1dSecondOrder(object):
         sech2 = 1 - tanh ** 2 # squared hyperbolic secant
         
         # constant term derivaitve of constraining operator
-        ddc = 2 * tanh * sech2 
+        ddc = 2 * tanh * sech2 / (self.w ** 2)
 
         # derivative of the linear term
         l = 2 * (self.w ** 2) * u * sech2 * (sech2 - 2 * (tanh ** 2))
@@ -384,9 +380,7 @@ class Cos1dMulticscale_Extention(object):
         boundary conditions
         """
 
-        input_norm = (input - self.mean) / self.std
-
-        return torch.tanh(self.w[-1] * input_norm) * pred
+        return torch.tanh(self.w[-1] * input) * pred
 
     def compute_pde_residual(self, pred, input):
         """
@@ -509,9 +503,7 @@ class Cos2d(object):
         boundary conditions
         """
 
-        input_norm = (input - self.mean) / self.std
-        #print("input_norm problem", input_norm.shape)
-        output = 1/self.w * torch.sin(self.w *input_norm[:, 1])*torch.tanh(self.w * input_norm[:, 0]) * pred 
+        output = 1/self.w * torch.sin(self.w * input[:, 1])*torch.tanh(self.w * input[:, 0]) * pred 
         assert output.numel() == input.shape[0]
         #print("output problem", output.shape)
         return output

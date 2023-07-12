@@ -21,27 +21,13 @@ class FBPinn(Module):
         self.sigma = sigma # parameter (set) for window function
         self.subdomains = self.partition_domain()
         self.means = self.get_midpoints()
-        if isinstance(self.nwindows, int):
-            self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
-        else:
-             
-             self.subdomains_row, self.subdomains_col = torch.split(self.subdomains, self.nwindows)
-             self.stdrow = (self.subdomains_row[:, 1] - self.subdomains_row[:, 0]) / 2
-             self.stdcol = (self.subdomains_col[:, 1] - self.subdomains_col[:, 0]) / 2
-             self.std = torch.cartesian_prod(self.stdrow, self.stdcol)
+        self.std = (self.subdomains[:, 1] - self.subdomains[:, 0]) / 2
              
 
         self.u_mean = problem.u_mean
         self.u_sd = problem.u_sd
-        # case 1D
-        if isinstance(self.nwindows, int):
-            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
-        # case 2D    
-        else:
-            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows[0]*self.nwindows[1])])
+        self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
 
-
-    ###  Task Allebasi
     def partition_domain(self):
         """
         Given an interval, splits it into evenly sized
@@ -58,104 +44,51 @@ class FBPinn(Module):
         # error when overlap is 0 or smaller
         if self.overlap <= 0:
             raise ValueError("Overlap must be greater than 0.")
-        #check if nwindows is not int or tuple otherwise raise error
-        if not isinstance(self.nwindows, int) and not isinstance(self.nwindows, tuple):
-            raise ValueError("nwindows must be an integer or a tuple of integers.")
             
-        #problem for 1d: width = (self.domain[0][1]-self.domain[0][0]) / self.nwindows
-        if isinstance(self.nwindows, int):
-            subdomains = torch.zeros(self.nwindows, 2)
-            width = (self.domain[1]-self.domain[0]) / self.nwindows
-            for i in range(self.nwindows):
-                #subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width if i != 0 else self.domain[0][0]
-                #subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[0][1]
-                subdomains[i][0] = self.domain[0] + (i-self.overlap/2) * width if i != 0 else self.domain[0]
-                subdomains[i][1] = self.domain[0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[1]
-        else:
-            subdomains = torch.zeros(sum(self.nwindows), 2)
-            width = ((self.domain[0][1]-self.domain[0][0]) / self.nwindows[0] , (self.domain[1][1]-self.domain[1][0] )/ self.nwindows[1]) 
-            for i in range(self.nwindows[0]):
-                subdomains[i][0] = self.domain[0][0] + (i-self.overlap/2) * width[0] if i != 0 else self.domain[0][0]
-                subdomains[i][1] = self.domain[0][0] + (i+1+self.overlap/2) * width[0] if i != (self.nwindows[0]-1) else self.domain[0][1]
-            for j in range(self.nwindows[1]):
-                subdomains[j+self.nwindows[0]][0] = self.domain[1][0] + (j-self.overlap/2) * width[1] if j != 0 else self.domain[1][0]
-                subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width[1] if j != (self.nwindows[1]-1) else self.domain[1][1]
-        #print(subdomains, subdomains.shape)
+        #problem for 1d: 
+        subdomains = torch.zeros(self.nwindows, 2)
+        width = (self.domain[1]-self.domain[0]) / self.nwindows
+        for i in range(self.nwindows):
+            subdomains[i][0] = self.domain[0] + (i-self.overlap/2) * width if i != 0 else self.domain[0]
+            subdomains[i][1] = self.domain[0] + (i+1+self.overlap/2) * width if i != (self.nwindows-1) else self.domain[1]
+
         return subdomains
-
-        #raise NotImplementedError
-
 
     def get_midpoints(self):
         """
         Gets the midpoint of each subdomain for subdomain
         normalization. 
         """
-        if isinstance(self.nwindows, int):
-            midpoints = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
-        else:
-            subdomains_row, subdomains_col = torch.split(self.subdomains, self.nwindows)
-            midpoints_row = (subdomains_row[:, 1] + subdomains_row[:, 0]) / 2
-            midpoints_col = (subdomains_col[:, 1] + subdomains_col[:, 0]) / 2
-            midpoints = torch.cartesian_prod( midpoints_row, midpoints_col)
+        midpoints = (self.subdomains[:, 1] + self.subdomains[:, 0]) / 2
+        
         return midpoints
-
 
     def get_midpoints_overlap(self):
         """
         Gets the midpoint of left and right overlapping domain 
         for window function later.
         """
-        # 1D case
-        if isinstance(self.nwindows, int):
-            #initialize midpoints, edges of domain are not overlapping
-            midpoints = torch.zeros(self.nwindows+1)
-            midpoints[0] = self.subdomains[0][0]
-            #midpoints[self.nwindows] = self.subdomains[self.nwindows][1]
-            midpoints[self.nwindows] = self.subdomains[self.nwindows-1][1]
+        
+        #initialize midpoints, edges of domain are not overlapping
+        midpoints = torch.zeros(self.nwindows+1)
+        midpoints[0] = self.subdomains[0][0]
+        midpoints[self.nwindows] = self.subdomains[self.nwindows-1][1]
 
-            #compute midpoints of overlapping interior domains
-            # we have self.nwindows -1 overlapping regions 
-            #begin with 0 end with end of domain
-            for i in range(1,self.nwindows):
-                midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
-        # 2D case
-        else: 
-            #initialize midpoints, edges of domain are not overlapping
-            midpoints_row = torch.zeros(self.nwindows[0]+1)
-            midpoints_col = torch.zeros(self.nwindows[1]+1)
-            midpoints_row[0] = self.subdomains[0][0]
-            midpoints_row[self.nwindows[0]] = self.subdomains[self.nwindows[0]-1][1]
-            midpoints_col[0] = self.subdomains[0][0]
-            midpoints_col[self.nwindows[1]] = self.subdomains[self.nwindows[1]-1][1]
-            
-            for i in range(1,self.nwindows[0]):
-                midpoints_row[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2
-            for j in range(1,self.nwindows[1]):
-                midpoints_col[j] = (self.subdomains[self.nwindows[0]+j-1][1] + self.subdomains[self.nwindows[0]+j][0]) / 2
-            midpoints = torch.cartesian_prod(midpoints_row, midpoints_col)
-            
+        #compute midpoints of overlapping interior domains
+        # we have self.nwindows -1 overlapping regions 
+        # begin with 0 end with end of domain
+        for i in range(1,self.nwindows):
+            midpoints[i] = (self.subdomains[i-1][1] + self.subdomains[i][0]) / 2 
+        
         return midpoints
 
     def compute_window(self, input, iteration):
         """
         Computes window function given input points and domain and parameter sigma
         """
-        # 1D case
-        if isinstance(self.nwindows, int):
-            x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
-            x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
-            window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
-        # 2D case
-        else:
-            x_left = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration][0])) / self.sigma
-            x_right = (torch.sub(input[:,0], self.get_midpoints_overlap()[iteration+1][0])) / self.sigma
-            y_left = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration][1])) / self.sigma
-            y_right = (torch.sub(input[:,1], self.get_midpoints_overlap()[iteration+1][1])) / self.sigma
-            window = torch.sigmoid(x_left) * torch.sigmoid(-x_right) * torch.sigmoid(y_left) * torch.sigmoid(-y_right)
-                  
-        #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
-        #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
+        x_left = (torch.sub(input, self.get_midpoints_overlap()[iteration])) / self.sigma
+        x_right = (torch.sub(input, self.get_midpoints_overlap()[iteration+1])) / self.sigma
+        window = torch.sigmoid(x_left) * torch.sigmoid(-x_right)
         
         return window
 
@@ -167,26 +100,13 @@ class FBPinn(Module):
         """
 
         active_inputs = torch.zeros_like(input, dtype=bool)
-        if isinstance(self.nwindows, int):
-            for i in active_models:
-                subdomain = self.subdomains[i, :]
+        for i in active_models:
+            subdomain = self.subdomains[i, :]
 
-                # turn inputs in subdomain i to active
-                active_inputs |= (input <= subdomain[1]) & (subdomain[0] <= input)
+            # turn inputs in subdomain i to active
+            active_inputs |= (input <= subdomain[1]) & (subdomain[0] <= input)
 
-            return input[active_inputs].reshape(-1, 1)
-        else:
-            for i in active_models:
-                row, col = divmod(i, self.nwindows[0])
-                col = col + self.nwindows[0]
-                
-                subdomain = torch.cat(( self.subdomains[row, :], self.subdomains[col, :]), dim = 0)
-
-                # turn inputs in subdomain i to active
-                active_inputs |= (input[:,0] <= subdomain[0][1]) & (subdomain[0][0] <= input[:,0]) & (input[:,1] <= subdomain[1][1]) & (subdomain[1][0] <= input[:,1])
-
-            return input[active_inputs].reshape(-1, 2)
-
+        return input[active_inputs].reshape(-1, 1)
 
     def forward(self, input, active_models=None):
         """
