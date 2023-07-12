@@ -16,8 +16,8 @@ from datetime import datetime
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
 nwindows = 30
-nepochs = 10
-nepochs_pinn = 10
+nepochs = 20000
+nepochs_pinn = 20000
 lr = 1e-3
 hidden = 2
 neurons = 16
