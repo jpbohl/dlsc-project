@@ -5,7 +5,7 @@ total_params = lambda model: sum(p.numel() for p in model.parameters())
 
 class NeuralNet(nn.Module):
 
-    def __init__(self, n_hidden_layers, neurons, input_dimension=1, output_dimension=1, regularization_param=0, regularization_exp=2, retrain_seed=0, dropout=0.0):
+    def __init__(self, n_hidden_layers, neurons, input_dimension, output_dimension=1, regularization_param=0, regularization_exp=2, retrain_seed=0, dropout=0.0):
         super(NeuralNet, self).__init__()
         # Number of input dimensions n
         self.input_dimension = input_dimension

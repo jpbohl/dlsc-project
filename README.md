@@ -26,7 +26,7 @@ The FBPiNN splits the domain into subdomains, computes window functions and then
 The PiNN class implements a standard PiNN. There are also trainer classes for PiNN and FBPiNN respectively, which defines
 the optimizers and runs training and testing. In the case of FBPiNNs, it also implements outward training as explained in [[1]](#1).
 
-### baseline_fig7.py, extension_manual_subdomain.py and extension_lbfgs.py
+### baseline_fig7.py, extension_manual_subdomain.py, extension_lbfgs.py and extension_2D.py
 
 Make it easy to reproduce the results given in the project report for the baseline task and some of the extensions. Running the scripts will train the presented models as well as reproduce the given plots. 
 
