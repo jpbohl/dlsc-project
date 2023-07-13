@@ -41,10 +41,10 @@ class FBPinn(Module):
         self.u_sd = problem.u_sd
         # case 1D
         if isinstance(self.nwindows, int):
-            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows)])
+            self.models = ModuleList([NN(hidden, neurons, 1) for _ in range(self.nwindows)])
         # case 2D    
         else:
-            self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows[0]*self.nwindows[1])])
+            self.models = ModuleList([NN(hidden, neurons, 2) for _ in range(self.nwindows[0]*self.nwindows[1])])
 
     def manual_partition(self):
         """
@@ -553,7 +553,11 @@ class Pinn(Module):
         self.u_mean = problem.u_mean
         self.u_sd = problem.u_sd
 
-        self.model= NN(hidden, neurons)
+        if domain.ndim == 1:
+            self.model= NN(hidden, neurons, 1)
+        else:
+            self.model= NN(hidden, neurons, 2)
+        #self.model= NN(hidden, neurons)
 
 
     def forward(self, input):
