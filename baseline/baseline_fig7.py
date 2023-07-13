@@ -22,7 +22,7 @@ lr = 1e-3
 hidden = 2
 neurons = 16
 overlap = 0.25
-sigma = 0.02
+sigma = 0.002
 w=(1,15)
 
 

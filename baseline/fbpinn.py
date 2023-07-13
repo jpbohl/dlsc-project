@@ -47,17 +47,25 @@ class FBPinn(Module):
             self.models = ModuleList([NN(hidden, neurons) for _ in range(self.nwindows[0]*self.nwindows[1])])
 
     def manual_partition(self):
-        #given a list of midpoints  e.g. manual_part: [0.1,0.2,0.25,0.3,0.6] on [0,0.75]
-        #nwindows is len(list)+1
+        """
+        Given a list of subinterval endpoints, creates 
+        overlapping subintervals. 
+
+        Works in 1 dimension. Note that the overlap is given in absolute values.
+
+        Input: 
+            manual partition (tensor) : list with midpoints of the desired subintervals
+        Return:
+            subdomains (tensor) : k x 2 tensor containing 
+                the start and end points of the subdomains with equal overlap on all sides
+        """
         assert self.nwindows == len(self.manual_part)+1
 
         partition= self.manual_part.copy()
 
-        #make it [0,0.1,0.2,0.25,0.3,0.60,0.75]
         partition.insert(0,self.domain[0].item())
         partition.insert(len(partition),self.domain[1].item())
 
-        #width is 0.1-0 , 0.2-0.1, 0.25-0.2, 0.3-0.25, 0.6-0.3, 0.75-0.6
         width= torch.zeros(self.nwindows, 1)
         for i in range(self.nwindows):
             width[i]= partition[i+1]-partition[i]
@@ -70,13 +78,13 @@ class FBPinn(Module):
         
         return subdomains
 
-    ###  Task Allebasi
+
     def partition_domain(self):
         """
         Given an interval, splits it into evenly sized
         overlapping subintervals. 
 
-        First just focus on 1 dimension.
+        First just focus on 1 dimension. Note that the overlap is given in relative values.
 
         Input: 
             domain (tensor) : start and end point of domain
@@ -112,7 +120,6 @@ class FBPinn(Module):
         #print(subdomains, subdomains.shape)
         return subdomains
 
-        #raise NotImplementedError
 
 
     def get_midpoints(self):
@@ -310,7 +317,8 @@ class FBPinn(Module):
     
     def plotting_data(self, input):
         """
-        Computes forward pass of FBPinn model 
+        Computes forward pass of FBPinn model such that individual predictions can
+        be easily plotted
         """
 
         #output for every subdomain: dimension  nwindows*input
@@ -349,7 +357,7 @@ class FBPinn(Module):
 
                 #add the number of flops for each trained network on subdomain
                 flops += model.flops(input_norm.shape[0])
-                #print("Number of FLOPS:", model.flops(input_norm.shape[0]))
+
         
             pred = self.problem.hard_constraint(pred, input)
             
@@ -405,6 +413,11 @@ class FBPINNTrainer:
         self.problem = problem
         
     def train(self, nepochs, trainset, active_models=None): 
+        '''
+        Implements training of the FBPiNN by optimizing according
+        to the log L2 loss of the pde_residual 
+        '''
+
         print("Training FBPINN")
         
         history = list()
@@ -440,6 +453,9 @@ class FBPINNTrainer:
         return pred, history, flops_history 
 
     def train_outward(self, nepochs, trainset):
+        '''
+        Implements outward training.
+        '''
 
         # get initial active models:
         #       l_active is the active model left of the initial condition
@@ -480,6 +496,10 @@ class FBPINNTrainer:
         return out[0], history, flops_history
     
     def test(self):
+        '''
+        Calculate testing error of predictions compared to true solution
+        in terms of relative L2 error. 
+        '''
 
         domain = self.problem.domain
         ntest = 1000   
@@ -535,6 +555,10 @@ class Pinn(Module):
 
 
     def forward(self, input):
+        '''
+        Calculate general forward pass for the PiNN models.
+        (Generally the same as for FBPiNNs)
+        '''
         
         # normalize data to given subdomain
         # normalize such that input lies in [-1,1]
@@ -581,7 +605,10 @@ class PINNTrainer:
         
 
     def train(self, nepochs, trainset): 
-        
+        '''
+        Implements training of the PiNN by optimizing according
+        to the log L2 loss of the pde_residual 
+        '''
         print("Training PINN")
         
         history = list()
@@ -617,6 +644,10 @@ class PINNTrainer:
         return pred, history, flops_history
 
     def test(self):
+        '''
+        Calculate testing error of predictions compared to true solution
+        in terms of relative L2 error. 
+        '''
 
         domain = self.problem.domain
         ntest = 1000
