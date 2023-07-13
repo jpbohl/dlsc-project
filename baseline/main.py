@@ -18,16 +18,18 @@ domain = torch.tensor(((-torch.pi, torch.pi), (-torch.pi, torch.pi))) # for 2D
 #domain = torch.tensor(((0,4), (0,4)))
 nsamples = 22500
 #nwindows = 30
-nepochs = 500
-nepochs_pinn = 500
+nepochs = 15000
+nepochs_pinn = 15000
 lr = 1e-3
 hidden = 2
 pinn_hidden = 5
 neurons = 16
 pinn_neurons = 128
-overlap = 0.5
-sigma = 0.0001
-w=5
+overlap = 0.75
+
+#sigma = 0.02
+w=7
+sigma = (domain[0][1]-domain[0][0])/w*0.05
 nwindows = (w,w)
 
 #w = (1, 2, 4, 8, 16)
@@ -232,15 +234,16 @@ else:
     # plot the difference between FBPiNN's solution and exact solution
     
     #fig, axs = plt.subplots(1, 3, figsize=(12, 6), dpi=50)
+    scale_max = max(abs((pred_fbpinn-problem.exact_solution(input)).detach().numpy().max()), abs((pred_pinn-problem.exact_solution(input)).detach().numpy().max()))
     
-    im4 = axs[1,0].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    im4 = axs[1,0].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis', vmin=-scale_max, vmax= scale_max)
     axs[1,0].set_xlabel('x1')
     axs[1,0].set_ylabel('x2')
     plt.colorbar(im4, ax=axs[1,0])
     axs[1,0].grid(True, which='both', ls=":")
     axs[1,0].set_title('FBPiNN: difference')
     
-    im5 = axs[1,1].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_pinn-problem.exact_solution(input)).detach(), cmap='viridis')
+    im5 = axs[1,1].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_pinn-problem.exact_solution(input)).detach(), cmap='viridis', vmin=-scale_max, vmax= scale_max)
     axs[1,1].set_xlabel('x1')
     axs[1,1].set_ylabel('x2')
     plt.colorbar(im5, ax=axs[1,1])
@@ -248,8 +251,8 @@ else:
     axs[1,1].set_title('PiNN: difference')
     
     training_error_l2 = axs[1,2]
-    training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), torch.log10(torch.tensor(history_fbpinn)), label="FBPiNN")
-    training_error_l2.plot(np.arange(1, len(history_pinn) + 1), torch.log10(torch.tensor(history_pinn)), label="PiNN ")
+    training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), (torch.tensor(history_fbpinn)), label="FBPiNN")
+    training_error_l2.plot(np.arange(1, len(history_pinn) + 1), (torch.tensor(history_pinn)), label="PiNN ")
     training_error_l2.set_xlabel('Training Step')
     training_error_l2.set_ylabel('Relative L2 error')
     training_error_l2.legend()

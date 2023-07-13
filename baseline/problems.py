@@ -423,7 +423,7 @@ class Cos2d(object):
 
         self.domain = domain
         self.nsamples = nsamples
-        self.nsamples_2d = 70000
+        self.nsamples_2d = 100000
 
         # in this case w = w
         self.w = w

@@ -196,7 +196,9 @@ class FBPinn(Module):
             # print("check", self.get_midpoints_overlap()[r+c][0], self.get_midpoints_overlap()[r+c+1+self.nwindows[1]][0], 
             #       self.get_midpoints_overlap()[r+c][1], self.get_midpoints_overlap()[r+c+1][1], iteration, r, c )
             #print("midpoints", self.get_midpoints_overlap()) 
-            #print("subdomains", self.subdomains)     
+            #print("subdomains", self.subdomains) 
+            assert self.get_midpoints_overlap()[r+c][0] < self.get_midpoints_overlap()[r+c+1+self.nwindows[1]][0]
+            assert self.get_midpoints_overlap()[r+c][1] < self.get_midpoints_overlap()[r+c+1][1]    
         #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
         #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
         
