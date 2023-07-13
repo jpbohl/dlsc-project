@@ -104,7 +104,8 @@ class FBPinn(Module):
             subdomain = self.subdomains[i, :]
 
             # turn inputs in subdomain i to active
-            active_inputs |= (input <= subdomain[1]) & (subdomain[0] <= input)
+            window = self.compute_window(input, i)
+            active_inputs |= (window > 1e-5)
 
         return input[active_inputs].reshape(-1, 1)
 
@@ -125,26 +126,24 @@ class FBPinn(Module):
 
             model = self.models[i] # get model i
             
+            window = self.compute_window(input, i).reshape(-1, 1)
+            
             # get index for points which are in model i subdomain and normalize
-            in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
+            #in_subdomain = (self.subdomains[i][0] <= input) & (input <= self.subdomains[i][1])
+            in_subdomain = (window > 1e-5)
             input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 1)
-
-            # check whether we normalised to (-1, 1)
-            assert((input_norm <= 1).all().item())
-            assert((-1 <= input_norm).all().item())
 
             # model i prediction and unnormalization
             output = model(input_norm).reshape(-1)
             output = output * self.u_sd + self.u_mean
             
             # compute window function for subdomain i and model out to predictions
-            window = self.compute_window(input[in_subdomain], i)
-            pred[in_subdomain] += window * output
+            pred[in_subdomain] += (window[in_subdomain] * output)
             
             #add the number of flops for each trained network on subdomain
             flops += model.flops(input_norm.shape[0])
             
-        #pred = self.problem.hard_constraint(pred, input)
+        pred = self.problem.hard_constraint(pred, input)
 
         return pred, flops
     
@@ -237,7 +236,7 @@ class FBPINNTrainer:
                     input_.requires_grad_(True) # allow gradients wrt to input for pde loss
                     pred, flops = self.fbpinn(input_, active_models=active_models)
                     loss = self.loss(pred, input_)
-                    loss.backward(retain_graph=True)
+                    loss.backward()
 
                     flops_history.append(flops)
                     
@@ -249,6 +248,7 @@ class FBPINNTrainer:
 
 
                     print(f"Epoch {i} // Total Loss : {loss.item()}")
+                    
                     return loss
 
                 
@@ -287,7 +287,7 @@ class FBPINNTrainer:
         active_inputs = self.fbpinn.get_active_inputs(input, active_models)
         dataset = TensorDataset(active_inputs)
         dataloader = DataLoader(dataset, batch_size=active_inputs.shape[0], shuffle=False)
-        out = self.train(nepochs, trainset, active_models)
+        out = self.train(nepochs, dataloader, active_models)
 
         # update histories
         history = out[-2]
@@ -353,7 +353,7 @@ class FBPINNTrainer:
 
         self.fbpinn.eval()
         pred, flops = self.fbpinn(points)
-        pred = self.problem.hard_constraint(pred, points)
+        #pred = self.problem.hard_constraint(pred, points)
         true = self.problem.exact_solution(points)
 
         # check that no unwanted broadcasting occured
@@ -404,7 +404,7 @@ class Pinn(Module):
         output = pred * self.u_sd + self.u_mean
         
         # apply hard constraint
-        #output = self.problem.hard_constraint(pred, input)
+        output = self.problem.hard_constraint(pred, input)
 
         # compute flops of forward pass
         flops = self.model.flops(input_norm.shape[0])
@@ -495,7 +495,7 @@ class PINNTrainer:
         
         self.pinn.eval()
         pred, flops = self.pinn(points)
-        pred = self.problem.hard_constraint(pred, points)
+        #pred = self.problem.hard_constraint(pred, points)
         true = self.problem.exact_solution(points)
 
         # check that no unwanted broadcasting occured

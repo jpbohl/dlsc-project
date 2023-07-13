@@ -1,7 +1,7 @@
 import torch
 
 from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
-from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder, Cos1dMulticscale_Extention, Cos2d	
+from problems import Cos1d, Cos1dMulticscale, Sin1dSecondOrder, Cos1dMulticscale_Extension, Cos2d	
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -17,22 +17,23 @@ wandb.login()
 # define parameters
 #domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
 #domain = torch.tensor(((-2,2), (-2, 2)))
+#n = 6
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
 nwindows = 30
 #nwindows = (6,2)
-nepochs = 2000
-nepochs_pinn = 2000
+nepochs = 5000
+nepochs_pinn = 50000
 optimizer = "ADAM"
 lr = 1e-3
 hidden = 2
-pinn_hidden = 4
+pinn_hidden = 5
 neurons = 16
 pinn_neurons = 64
 overlap = 0.25
-sigma = 0.05
+sigma = 0.02
 w = 15
-#w = [2 ** i for i in range(5)]
+#w = [2 ** i for i in range(n)]
 debug_loss = False
 
 run = wandb.init(project="Sin1D 2ndOrder",
@@ -52,7 +53,7 @@ run = wandb.init(project="Sin1D 2ndOrder",
                     "debug_loss" : debug_loss,
                     "w" : w})
 
-#problem = Cos1dMulticscale_Extention(domain, nsamples, w)
+#problem = Cos1dMulticscale_Extension(domain, nsamples, w)
 #problem = Cos1dMulticscale(domain, nsamples, w)
 problem = Sin1dSecondOrder(domain, nsamples, w)
 #problem = Cos1d(domain, nsamples, w)
@@ -71,7 +72,7 @@ fbpinn_trainer = FBPINNTrainer(run, fbpinn, lr, problem, optimizer, debug_loss)
 pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(run, pinn, lr, problem, optimizer, debug_loss)
 
-#pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
+pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward(nepochs, trainset)
 pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs, trainset)
 
 # Realtive L2 Test Loss

@@ -162,7 +162,7 @@ class Cos1dMulticscale(object):
         dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
         f = self.w1 * torch.cos(self.w1 * input) + self.w2 * torch.cos(self.w2 * input)
         
-        assert (dx - f).numel() == self.nsamples
+        assert (dx - f).numel() == input.numel()
 
         return dx - f
     
@@ -271,7 +271,7 @@ class Sin1dSecondOrder(object):
         sech2 = 1 - tanh ** 2 # squared hyperbolic secant
         
         # constant term derivaitve of constraining operator
-        ddc = 2 * tanh * sech2 / (self.w ** 2)
+        ddc = 2 * tanh * sech2
 
         # derivative of the linear term
         l = 2 * (self.w ** 2) * u * sech2 * (sech2 - 2 * (tanh ** 2))
@@ -306,7 +306,7 @@ class Sin1dSecondOrder(object):
         """
         
         #unsupervised
-        residual  = self.pde_loss(pred, input)
+        residual  = self.compute_pde_residual(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
@@ -330,7 +330,7 @@ class Sin1dSecondOrder(object):
         return (- 1 / (self.w ** 2)) * torch.sin(self.w * input)
     
     
-class Cos1dMulticscale_Extention(object):
+class Cos1dMulticscale_Extension(object):
 #Extension (a) problem:
 #define problem together with exact solution to
 #du/dx = ω1 cos(ω1*x) + ω2 cos(ω2*x)+ ω3 cos(ω3*x) + ω4 cos(ω4*x) + ω5 cos(ω5*x)
