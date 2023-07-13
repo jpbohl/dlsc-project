@@ -14,19 +14,20 @@ from datetime import datetime
 # define parameters
 #domain = torch.tensor((6/(20*torch.pi), 6/torch.pi)) # for xsin(1/x)
 #domain = torch.tensor((-2*torch.pi, 2*torch.pi))
-domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi))) # for 2D
-nsamples = 1000
+domain = torch.tensor(((-torch.pi, torch.pi), (-torch.pi, torch.pi))) # for 2D
+#domain = torch.tensor(((0,4), (0,4)))
+nsamples = 22500
 #nwindows = 30
-nepochs = 1
-nepochs_pinn = 2
+nepochs = 500
+nepochs_pinn = 500
 lr = 1e-3
 hidden = 2
 pinn_hidden = 5
 neurons = 16
-pinn_neurons = 64
-overlap = 0.25
+pinn_neurons = 128
+overlap = 0.5
 sigma = 0.0001
-w=2
+w=5
 nwindows = (w,w)
 
 #w = (1, 2, 4, 8, 16)
@@ -247,18 +248,22 @@ else:
     axs[1,1].set_title('PiNN: difference')
     
     training_error_l2 = axs[1,2]
-    training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), history_fbpinn, label="FBPiNN")
-    training_error_l2.plot(np.arange(1, len(history_pinn) + 1), history_pinn, label="PiNN ")
+    training_error_l2.plot(np.arange(1, len(history_fbpinn) + 1), torch.log10(torch.tensor(history_fbpinn)), label="FBPiNN")
+    training_error_l2.plot(np.arange(1, len(history_pinn) + 1), torch.log10(torch.tensor(history_pinn)), label="PiNN ")
     training_error_l2.set_xlabel('Training Step')
     training_error_l2.set_ylabel('Relative L2 error')
     training_error_l2.legend()
     training_error_l2.set_title('Comparing test errors')
     
     # window_plot = axs[1,2]
-    # for i in range(nwindows[0]*nwindows[1]):
-    #         window_plot.scatter(input[:,0].detach(),input[:,0].detach(), c=(window_output[i,]).detach(), cmap = 'viridis')
-    plt.tight_layout()
-    #print(window_output[0, ], sum(window_output[0, ]), window_output[0,].shape)
+    # # for i in range(nwindows[0]*nwindows[1]):
+    # #     wind_out = sum(window_output[i, ])
+    # #print("r",torch.sum(window_output, dim =0))
+    # axs[1,2].grid(True, which='both', ls=":")
+    # #window_plot.scatter(input[:,0].detach(),input[:,1].detach(), c=(torch.sum(window_output, dim =0)).detach(), cmap = 'viridis')
+    # window_plot.scatter(input[:,0].detach(),input[:,1].detach(), c=(window_output[13, ]).detach(), cmap = 'viridis')
+    # plt.tight_layout()
+    # #print(window_output[0, ], sum(window_output[0, ]), window_output[0,].shape)
 
 #save plots in folder results
 

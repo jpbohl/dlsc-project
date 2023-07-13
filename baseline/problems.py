@@ -473,7 +473,7 @@ class Cos2d(object):
 
         input_norm = (input - self.mean) / self.std
         #print("input_norm problem", input_norm.shape)
-        output = 1/self.w * torch.sin(self.w *input[:, 1]) + torch.tanh(self.w * input_norm[:, 0]) * pred 
+        output = 1/self.w * torch.sin(self.w *input[:, 1]) + torch.tanh(self.w * input[:, 0]) * pred 
         assert output.numel() == input.shape[0]
         #print("output problem", output.shape)
         return output
