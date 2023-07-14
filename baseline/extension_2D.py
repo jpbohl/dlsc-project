@@ -1,11 +1,9 @@
 import torch
-import torch.optim as optim
 
-from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
+from fbpinn2D import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
 from problems import Cos2d
 
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 import numpy as np
 
 import os 
@@ -13,16 +11,13 @@ from datetime import datetime
 
 
 # define parameters
-
-
 domain = torch.tensor(((-torch.pi, torch.pi), (-torch.pi, torch.pi)))
 #domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
 w=7
-
 nsamples = 1000*w**2 # 1000 samples per window/subdomain
 
-nepochs = 1
-nepochs_pinn = 1
+nepochs = 100
+nepochs_pinn = 100
 lr = 1e-3
 hidden = 2
 pinn_hidden = 5
@@ -44,13 +39,8 @@ else:
     if domain.ndim != 2:
         raise ValueError('nwindows must be an integer if domain.ndim == 1')
 
-
-
-
-# get training set
 trainset, plotset = problem.assemble_dataset()
 input = next(iter(plotset))[0] # get input points for plotting
-
 
 #### FBPiNN trainer
 
@@ -63,8 +53,6 @@ pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
 print("Relative L2 Loss: ", relativeL2)
-
-
 
 ####PiNN trainer
 
