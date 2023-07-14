@@ -428,9 +428,6 @@ class FBPINNTrainer:
             
             for input_, in trainset:
 
-                if active_models is not None:
-                    input_ = self.fbpinn.get_active_inputs(input_, active_models) 
-               
                 def closure():
                     self.optimizer.zero_grad()
                     input_.requires_grad_(True) # allow gradients wrt to input for pde loss
@@ -468,11 +465,15 @@ class FBPINNTrainer:
         flops_history = []
         for i in range(r_active):
             
-            #l_parameters = list(self.fbpinn.models[l_active].parameters())
-            #r_parameters = list(self.fbpinn.models[r_active].parameters())
-            #self.optimizer = Adam(l_parameters + r_parameters, lr=self.lr)
+            l_parameters = list(self.fbpinn.models[l_active].parameters())
+            r_parameters = list(self.fbpinn.models[r_active].parameters())
+            self.optimizer = Adam(l_parameters + r_parameters, lr=self.lr)
             
-            active_models = (l_active, r_active)
+            if i == 0:
+                active_models = (l_active, r_active)
+            else:
+                # sum active models with models further inward
+                active_models = (l_active, l_active + 1, r_active - 1, r_active)
             out = self.train(nepochs, trainset, active_models)
 
             # update histories

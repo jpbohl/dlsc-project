@@ -12,7 +12,7 @@ nsamples = 3000
 nwindows = 30
 nepochs = 5000
 lr = 1e-3
-hidden = 2
+hidden = 3
 pinn_hidden = 5
 neurons = 16
 pinn_neurons = 128
@@ -40,7 +40,7 @@ pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs
 relativeL2 = fbpinn_trainer.test()
 print("FBPiNN relative L2 Loss: ", relativeL2)
 
-time.wait(5)
+time.sleep(5)
 
 ############################################################################################################
 # PiNN training
@@ -55,7 +55,7 @@ pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs, trainset)
 relativeL2 = pinn_trainer.test()
 print("PiNN Relative L2 Loss: ", relativeL2)
 
-time.wait(5)
+time.sleep(5)
 
 plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, history_pinn, history_pinn_flops)
 
@@ -73,7 +73,7 @@ pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train_outward
 # Realtive L2 Test Loss
 relativeL2 = fbpinn_trainer.test()
 print("FBPiNN Relative L2 Loss: ", relativeL2)
-time.wait(5)
+time.sleep(5)
 
 # PiNN (we increase training time for the PiNN to make the comparison fairer)
 pred, history_pinn, history_pinn_flops = pinn_trainer.train(nwindows * nepochs, trainset)
@@ -81,6 +81,6 @@ pred, history_pinn, history_pinn_flops = pinn_trainer.train(nwindows * nepochs, 
 # Realtive L2 Test Loss
 relativeL2 = pinn_trainer.test()
 print("PiNN Relative L2 Loss: ", relativeL2)
-time.wait(5)
+time.sleep(5)
 
 plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, history_pinn, history_pinn_flops)

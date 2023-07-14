@@ -236,39 +236,6 @@ class Sin1dSecondOrder(object):
 
         return (- 1 / (self.w ** 2)) * tanh + (tanh ** 2) * pred
 
-
-    def get_gradients(self, pred, input):
-
-        dx = torch.autograd.grad(pred.sum(), input, create_graph=True)[0]
-        ddx = torch.autograd.grad(dx.sum(), input, create_graph=True)[0]
-
-        return pred, dx, ddx
-
-    def pde_loss(self, pred, input):
-
-        # get gradients of neural network
-        u, du, ddu = self.get_gradients(pred, input)
-
-        tanh = torch.tanh(self.w * input)
-        sech2 = 1 - tanh ** 2 # squared hyperbolic secant
-        
-        # constant term derivaitve of constraining operator
-        ddc = 2 * tanh * sech2 
-
-        # derivative of the linear term
-        l = 2 * (self.w ** 2) * u * sech2 * (sech2 - 2 * (tanh ** 2))
-        dl = 4 * self.w * du * tanh * sech2
-        ddl = (tanh ** 2) * ddu
-
-        # source term
-        f = torch.sin(self.w * input)
-
-        residual = ddc + l + dl + ddl - f
-
-        assert residual.numel() == input.numel()
-
-        return residual
-
     def compute_pde_residual(self, pred, input):
         """
         Compute PDE loss using autograd
@@ -288,7 +255,7 @@ class Sin1dSecondOrder(object):
         """
         
         #unsupervised
-        residual  = self.pde_loss(pred, input)
+        residual  = self.compute_pde_residual(pred, input)
         loss = torch.mean(abs(residual) ** 2)
 
         #get log loss 
