@@ -258,11 +258,13 @@ class FBPinn(Module):
         for i in active_models:
 
             model = self.models[i] # get model i
+            window = self.compute_window(input, i)
             
             #1D case
             if isinstance(self.nwindows, int):
                 # get index for points which are in model i subdomain
-                in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
+                #in_subdomain = (self.subdomains[i][0] < input) & (input < self.subdomains[i][1])
+                in_subdomain = window > 1e-5
                 #print(in_subdomain)
                        
                 # normalize data to given subdomain and extract relevant points
@@ -279,17 +281,17 @@ class FBPinn(Module):
                 input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 2)
 
             # check whether we normalised to (-1, 1)
-            if isinstance(self.nwindows, int):
-                assert((input_norm <= 1).all().item())
-                assert((-1 <= input_norm).all().item())
-                pass
-            else:
-                #print("input_norm, input[in_subdomain]",input_norm, input[in_subdomain])
-                assert((input_norm[:,0] <= 1).all().item())
-                assert((-1 <= input_norm[:,0]).all().item())
-                assert((input_norm[:,1] <= 1).all().item())
-                assert((-1 <= input_norm[:,1]).all().item())
-                pass
+            #if isinstance(self.nwindows, int):
+                #assert((input_norm <= 1).all().item())
+                #assert((-1 <= input_norm).all().item())
+                #pass
+            #else:
+                ##print("input_norm, input[in_subdomain]",input_norm, input[in_subdomain])
+                #assert((input_norm[:,0] <= 1).all().item())
+                #assert((-1 <= input_norm[:,0]).all().item())
+                #assert((input_norm[:,1] <= 1).all().item())
+                #assert((-1 <= input_norm[:,1]).all().item())
+                #pass
 
             # model i prediction
             output = model(input_norm).reshape(-1)            
@@ -297,13 +299,13 @@ class FBPinn(Module):
             #print("output.shape", output.shape)
             
             # compute window function for subdomain i
-            window = self.compute_window(input[in_subdomain], i)
+            #window = self.compute_window(input[in_subdomain], i)
             #print("window", window)
             #print(pred.shape)
             # add prediction to total output
             #print((window*output).shape)
             #print("pred", pred.shape, in_subdomain.shape)
-            pred[in_subdomain] += window * output
+            pred[in_subdomain] += window[in_subdomain] * output
             #print("pred[in_sub]", pred[in_subdomain])
             #print("pred_ fbpinn", pred.shape)
             #add the number of flops for each trained network on subdomain

@@ -10,9 +10,9 @@ import time
 domain = torch.tensor((-2*torch.pi, 2*torch.pi))
 nsamples = 3000
 nwindows = 30
-nepochs = 5000
+nepochs = 2000
 lr = 1e-3
-hidden = 3
+hidden = 2
 pinn_hidden = 5
 neurons = 16
 pinn_neurons = 128
