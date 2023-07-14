@@ -9,11 +9,10 @@ import numpy as np
 import os 
 from datetime import datetime
 
-
 # define parameters
 domain = torch.tensor(((-torch.pi, torch.pi), (-torch.pi, torch.pi)))
 #domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
-w=7
+w=5
 nsamples = 1000*w**2 # 1000 samples per window/subdomain
 
 nepochs = 100
@@ -25,10 +24,8 @@ neurons = 16
 pinn_neurons = 128
 overlap = 0.75
 
-
 sigma = (domain[0][1]-domain[0][0])/w*0.05
 nwindows = (w,w)
-
 
 problem = Cos2d(domain, nsamples, w)
 
@@ -42,7 +39,9 @@ else:
 trainset, plotset = problem.assemble_dataset()
 input = next(iter(plotset))[0] # get input points for plotting
 
-#### FBPiNN trainer
+#################################################################################
+# FBPiNN training
+#################################################################################
 
 # define fbpinn model and trainer
 fbpinn = FBPinn(problem, nwindows, domain, hidden, neurons, overlap, sigma)
@@ -54,7 +53,9 @@ pred_fbpinn, history_fbpinn, history_fbpinn_flops = fbpinn_trainer.train(nepochs
 relativeL2 = fbpinn_trainer.test()
 print("Relative L2 Loss: ", relativeL2)
 
-####PiNN trainer
+#################################################################################
+# PiNN training
+#################################################################################
 
 # define pinn model and trainer
 
@@ -62,12 +63,13 @@ pinn = Pinn(problem, domain, pinn_hidden, pinn_neurons)
 pinn_trainer = PINNTrainer(pinn, lr, problem)
 pred, history_pinn, history_pinn_flops = pinn_trainer.train(nepochs_pinn, trainset)
 
-
-
 # Realtive L2 Test Loss
 relativeL2 = pinn_trainer.test()
 print("Relative L2 Loss: ", relativeL2)
 
+#################################################################################
+# Plotting
+#################################################################################
 
 pred_fbpinn, fbpinn_output, window_output, flops_fbpinn = fbpinn.plotting_data(input)
 pred_fbpinn = pred_fbpinn.reshape(-1, )
@@ -101,7 +103,6 @@ axs[0,2].grid(True, which='both', ls=":")
 axs[0,2].set_title('Exact solution')
 
 # plot the difference between FBPiNN's solution and exact solution
-
 scale_max = max(abs((pred_fbpinn-problem.exact_solution(input)).detach().numpy().max()), abs((pred_pinn-problem.exact_solution(input)).detach().numpy().max()))
 
 im4 = axs[1,0].scatter(input[:,0].detach(), input[:,1].detach(), c=(pred_fbpinn-problem.exact_solution(input)).detach(), cmap='viridis', vmin=-scale_max, vmax= scale_max)
@@ -131,7 +132,6 @@ training_error_l2.set_title('Comparing test errors')
 plt.tight_layout()
 
 #save plots in folder results
-
 current_working_directory = os.getcwd()
 target_dir =current_working_directory + '/results/'
 
@@ -143,8 +143,7 @@ plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
 
-
+# save model parameters in folder models
 target_dir =current_working_directory + '/models/'
-# save models in folder models
 torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
 torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")

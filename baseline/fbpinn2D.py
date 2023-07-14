@@ -8,7 +8,6 @@ from multiprocessing import Pool
 
 from nn import NeuralNet as NN
 
-
 class FBPinn(Module):
 
     def __init__(self, problem, nwindows, domain, hidden, neurons, overlap, sigma, manual_part=[]):
@@ -31,7 +30,6 @@ class FBPinn(Module):
         self.stdrow = (self.subdomains_row[:, 1] - self.subdomains_row[:, 0]) / 2
         self.stdcol = (self.subdomains_col[:, 1] - self.subdomains_col[:, 0]) / 2
         self.std = torch.cartesian_prod(self.stdrow, self.stdcol)
-             
 
         self.u_mean = problem.u_mean
         self.u_sd = problem.u_sd
@@ -50,7 +48,7 @@ class FBPinn(Module):
             subdomains (tensor) : k x 2 tensor containing 
                 the start and end points of the subdomains with equal overlap on all sides
         """
-        assert self.nwindows == len(self.manual_part)+1
+        assert self.nwindows == len(self.manual_part) + 1
 
         partition= self.manual_part.copy()
 
@@ -69,7 +67,6 @@ class FBPinn(Module):
         
         return subdomains
 
-
     def partition_domain(self):
         """
         Given an interval, splits it into evenly sized
@@ -86,10 +83,9 @@ class FBPinn(Module):
         # error when overlap is 0 or smaller
         if self.overlap <= 0:
             raise ValueError("Overlap must be greater than 0.")
-        
         #check if nwindows is not int or tuple otherwise raise error
         if not isinstance(self.nwindows, tuple):
-            raise ValueError("nwindows must be a tuple of integers.")
+            raise ValueError("nwindows must be an integer or a tuple of integers.")
             
         subdomains = torch.zeros(sum(self.nwindows), 2)
         width = ((self.domain[0][1]-self.domain[0][0]) / self.nwindows[0] , (self.domain[1][1]-self.domain[1][0] )/ self.nwindows[1]) 
@@ -101,8 +97,6 @@ class FBPinn(Module):
             subdomains[j+self.nwindows[0]][1] = self.domain[1][0] + (j+1+self.overlap/2) * width[1] if j != (self.nwindows[1]-1) else self.domain[1][1]
         
         return subdomains
-
-
 
     def get_midpoints(self):
         """
@@ -116,13 +110,12 @@ class FBPinn(Module):
        
         return midpoints
 
-
     def get_midpoints_overlap(self):
         """
         Gets the midpoint of left and right overlapping domain 
         for window function later.
         """
-        
+       
         #initialize midpoints, edges of domain are not overlapping
         midpoints_row = torch.zeros(self.nwindows[0]+1)
         midpoints_col = torch.zeros(self.nwindows[1]+1)
@@ -143,6 +136,7 @@ class FBPinn(Module):
         """
         Computes window function given input points and domain and parameter sigma
         """
+        
         r, c = divmod(iteration, self.nwindows[1])
         r = r * (self.nwindows[0]+1)
             
@@ -158,11 +152,30 @@ class FBPinn(Module):
         #print("subdomains", self.subdomains) 
         assert self.get_midpoints_overlap()[r+c][0] < self.get_midpoints_overlap()[r+c+1+self.nwindows[1]][0]
         assert self.get_midpoints_overlap()[r+c][1] < self.get_midpoints_overlap()[r+c+1][1]    
-        
         #window = torch.clamp(torch.clamp(1/(1+torch.exp(x_left)), min = tol )* torch.clamp(1/(1+torch.exp(-x_right)), min = tol), min = tol)
         #window = 1/(1+torch.exp(x_left))* 1/(1+torch.exp(-x_right))
         
         return window
+
+
+    def get_active_inputs(self, input, active_models):
+        """
+        Gets inputs relevant to training the currently
+        active models.
+        """
+
+        active_inputs = torch.zeros_like(input, dtype=bool)
+       
+        for i in active_models:
+            row, col = divmod(i, self.nwindows[0])
+            col = col + self.nwindows[0]
+                
+            subdomain = torch.cat(( self.subdomains[row, :], self.subdomains[col, :]), dim = 0)
+
+            # turn inputs in subdomain i to active
+            active_inputs |= (input[:,0] <= subdomain[0][1]) & (subdomain[0][0] <= input[:,0]) & (input[:,1] <= subdomain[1][1]) & (subdomain[1][0] <= input[:,1])
+
+        return input[active_inputs].reshape(-1, 2)
 
     def forward(self, input, active_models=None):
         """
@@ -184,19 +197,16 @@ class FBPinn(Module):
             
             row, col = divmod(i, self.nwindows[1])
             col = col + self.nwindows[0]         
+           
             # get index for points which are in model i subdomain
             in_subdomain = (self.subdomains[row][0] < input[:,0]) & (input[:,0] < self.subdomains[row][1]) & (self.subdomains[col][0] < input[:,1]) & (input[:,1] < self.subdomains[col][1])
-            #print("in_sub",in_subdomain)
-            #print("test",input.shape, input[in_subdomain].shape, self.subdomains.shape)
+            
             # normalize data to given subdomain and extract relevant points
             input_norm = ((input[in_subdomain] - self.means[i]) / self.std[i]).reshape(-1, 2)
 
             # model i prediction
             output = model(input_norm).reshape(-1)            
             output = output * self.u_sd + self.u_mean
-            
-            # compute window function for subdomain i
-            #window = self.compute_window(input[in_subdomain], i)
             
             # add prediction to total output
             pred[in_subdomain] += window[in_subdomain] * output
@@ -205,7 +215,7 @@ class FBPinn(Module):
             flops += model.flops(input_norm.shape[0])
             
         pred = self.problem.hard_constraint(pred, input)
-
+        
         return pred, flops
     
     
@@ -227,32 +237,26 @@ class FBPinn(Module):
                 
             # normalize data to given subdomain and extract relevant points
             input_norm = ((input - self.means[i]) / self.std[i]).reshape(-1, 2)
-            
-            # forward pass and unnormalization
             output = model(input_norm)
             output = output.squeeze()
             output = output * self.u_sd + self.u_mean
            
-            # apply window function and add to total output
             window = self.compute_window(input, i)
             ind_pred = window * (output.squeeze())
             pred += ind_pred
-           
-            # apply hard constraint
+            
             ind_pred = self.problem.hard_constraint(ind_pred, input)
-
-            # save individual network prediction for plotting 
             window_output[i,] = window.reshape(1,-1)[0]
             fbpinn_output[i,] = ind_pred.reshape(1,-1)[0]
             flops += model.flops(input_norm.shape[0])
-            pred = self.problem.hard_constraint(pred, input)
+        
+        pred = self.problem.hard_constraint(pred, input)
 
         return pred, fbpinn_output, window_output, flops
 
 class FBPINNTrainer:
 
     def __init__(self, fbpinn, lr, problem, optim='adam'):
-
         self.fbpinn = fbpinn
         self.lr = lr
         if optim == 'adam':
@@ -329,17 +333,15 @@ class FBPINNTrainer:
 
         return relative_L2.item()
 
+
 ###############################################################################
-
 # PINNs
-
 ###############################################################################
 
 
 class Pinn(Module):
 
     def __init__(self, problem, domain, hidden, neurons):
-
         super(Pinn, self).__init__()
         self.domain = domain # domain of the form torch.tensor([a, b])
 
@@ -380,10 +382,10 @@ class Pinn(Module):
 
         return output, flops
 
+
 class PINNTrainer:
 
     def __init__(self, pinn, lr, problem, optim = 'adam'):
-
         self.pinn = pinn
         if optim== 'adam':
             self.optimizer = Adam(pinn.parameters(),
@@ -399,7 +401,6 @@ class PINNTrainer:
         
         self.problem = problem
         
-
     def train(self, nepochs, trainset): 
         '''
         Implements training of the PiNN by optimizing according
@@ -452,9 +453,7 @@ class PINNTrainer:
         
         self.pinn.eval()
         pred, flops = self.pinn(points)
-        #print("pred_ test", pred.shape)
         true = self.problem.exact_solution(points)
-        #print("true test", true.shape)
 
         # check that no unwanted broadcasting occured
         assert (pred - true).numel() == ntest
