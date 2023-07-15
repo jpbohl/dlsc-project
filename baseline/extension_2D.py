@@ -11,12 +11,11 @@ from datetime import datetime
 
 # define parameters
 domain = torch.tensor(((-torch.pi, torch.pi), (-torch.pi, torch.pi)))
-#domain = torch.tensor(((-2*torch.pi, 2*torch.pi), (-2*torch.pi, 2*torch.pi)))
-w=5
+w=7
 nsamples = 1000*w**2 # 1000 samples per window/subdomain
 
-nepochs = 100
-nepochs_pinn = 100
+nepochs = 20000
+nepochs_pinn = 20000
 lr = 1e-3
 hidden = 2
 pinn_hidden = 5
@@ -139,11 +138,11 @@ now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H:%M")
 plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
 
-plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
+#plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
 
-# save model parameters in folder models
-target_dir =current_working_directory + '/models/'
-torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
-torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")
+## save model parameters in folder models
+#target_dir =current_working_directory + '/models/'
+#torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
+#torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")

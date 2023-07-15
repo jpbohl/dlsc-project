@@ -181,7 +181,7 @@ class Cos1dMulticscale(object):
 
         return torch.sin(self.w1 * input) + torch.sin(self.w2 * input)
 
-class Sin1dSecondOrder(object):
+class Sin1DSecondOrder(object):
 
 # define problem together with exact solution to
 # d^2 u/dx^2 = sin(wx)

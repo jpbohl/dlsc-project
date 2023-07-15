@@ -1,11 +1,9 @@
 import torch
-import torch.optim as optim
 
-from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
+from fbpinn1D import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
 from problems import Sin_osc
 
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 import numpy as np
 
 import os 
@@ -16,7 +14,7 @@ nsamples = 3000
 nwindows = 19
 nepochs = 10000
 nepochs_pinn = 10000
-lr = 1e-4
+lr = 1e-3
 hidden = 2
 pinn_hidden = 5
 neurons = 16
@@ -214,13 +212,6 @@ now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H:%M")
 plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
 
-plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
+#plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
-
-
-target_dir =current_working_directory + '/models/'
-# save models in folder models
-torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
-torch.save(fbpinn_fixedsub.state_dict(), target_dir + dt_string + "_fbpinn_fixedsub.pt")
-torch.save(pinn.state_dict(), target_dir + dt_string + "_pinn.pt")

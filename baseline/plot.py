@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, history_pinn, history_pinn_flops):
     fig = plt.figure(figsize=(15,8))
     grid = plt.GridSpec(3, 4, hspace=0.4, wspace=0.2)
@@ -15,7 +14,6 @@ def plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, his
     training_error_l2 = fig.add_subplot(grid[-1,-1])
     training_error_flop= fig.add_subplot(grid[-1,-2])
 
-
     #plot of FBPiNN with subdomain definition - every subdomain different color
 
     pred_fbpinn, fbpinn_output, window_output, flops = fbpinn.plotting_data(input)
@@ -25,7 +23,6 @@ def plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, his
     fbpinn_subdom.set_ylabel('u')
     fbpinn_subdom.set_xlabel('x')
     fbpinn_subdom.set_title('FBPiNN: individual network solution')
-
 
     #plot of FBPiNN's solution vs exact solution
 
@@ -45,7 +42,6 @@ def plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, his
     pinn_vs_exact.set_xlabel('x')
     pinn_vs_exact.legend()
     pinn_vs_exact.set_title('PiNN: global solution vs exact')
-
 
     # Test loss (L1 norm) vs Trainings step
 
@@ -86,6 +82,5 @@ def plot(fbpinn, pinn, problem, input, history_fbpinn, history_fbpinn_flops, his
     window_fct.set_yticks([-1,-0.45,0,0.5,1],['overlap','subdomain',0,'window function',1])
     window_fct.set_xlabel('x')
     window_fct.set_title('FBPiNN window function and domains')
-
 
     plt.show()

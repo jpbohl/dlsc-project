@@ -1,11 +1,9 @@
 import torch
-import torch.optim as optim
 
-from fbpinn import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
+from fbpinn1D import FBPinn, Pinn, FBPINNTrainer, PINNTrainer
 from problems import Cos1dMulticscale
 
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 import numpy as np
 
 import os 
@@ -162,16 +160,9 @@ now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H:%M")
 plot_name= dt_string +'_' + str(round(history_fbpinn[-1],2))
 
-plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
+#plt.savefig( target_dir + 'plot_' + plot_name + '.png' )
 
 plt.show()
-
-
-target_dir =current_working_directory + '/models/'
-# save models in folder models
-torch.save(fbpinn.state_dict(), target_dir + dt_string + "_fbpinn.pt")
-torch.save(pinn216.state_dict(), target_dir + dt_string + "_pinn.pt")
-
 
 #add-on: cool plot from fig 6 - with subdomain definition and overlap stuff
 
